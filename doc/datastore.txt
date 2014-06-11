@@ -1,0 +1,26 @@
+
+Documentation for the DataStore class
+
+The DataStore is an abstraction of the database.  The database is accessed
+using it's methods and members.
+
+
+A) BASE CLASS
+
+The DataStore class in an abstract base class that represents a DataStore at
+the highest level.
+
+
+B) MEMORY DATABASES
+
+The MemoryDataStore represents the database as a contiguous block of memory
+starting at a particular memory location.  This location is access using
+get_data().
+
+
+C) FILE DATABASE
+
+The FileDataStore is used to represent a database that is a file.  The database
+file is mapped into memory using mmap() and is represented as a
+MemoryDataStore.
+

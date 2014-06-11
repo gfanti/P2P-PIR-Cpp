@@ -1,0 +1,17 @@
+
+Documentation for MPIStreamBuf class
+
+The MPIStreamBuf is used for communication over MPI with iostreams.
+
+*** NOTE: This class is not functioning properly.
+
+
+A) STREAM BUFFER
+
+The MPIStreamBuf is a stream buffer used in MPI communications.  The
+constructor requires the rank of the other party with whom the communication is
+with (and optionally the COMM that the communication happens in).
+
+A pointer to the MPIStreamBuf object is then passed into std::iostream() to
+create a stream for communicating with the other rank using iostreams.
+

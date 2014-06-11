@@ -1,0 +1,88 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage[table]{xcolor}
+\usepackage{fullpage}
+\usepackage{amsthm}
+\usepackage{hanging}
+\usepackage{colortbl}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\newcommand{\barred}[1]
+	{\left| #1 \right|}
+\newcommand{\paren}[1]
+	{\left( #1 \right)}
+\newcommand{\braced}[1]
+	{\left\{ #1 \right\}}
+
+\begin{document}
+\lhead{$ $Id$ $}
+\lfoot{$ $Rev$ $}
+\pagestyle{fancy}
+
+
+\setlength{\parindent}{0pt}
+
+%\raggedright
+
+\title{\textbf{Description of \texttt{interpolate\_cohn\_heninger()}}}
+\date{\today}
+\author{Casey Devet}
+
+\maketitle
+\thispagestyle{fancy}
+
+\setlength{\parskip}{12pt}
+
+\section*{Input}
+
+\begin{tabular}{p{.9in}p{2.1in}p{3in}}
+\textbf{Name} & \textbf{Type} & \textbf{Description} \\ \hline
+$\ell$ & \texttt{unsigned int} & The maximum degree of functions $g(x)$ \\
+$h$ & \texttt{unsigned int} & The minimum number of shares that $g(x)$ agrees with \\
+$goodservers$ & \texttt{const vector<unsigned short>} & A list of all servers that may have good shares 
+		(not yet found to have a bad share) \\
+$indices$ & \texttt{const vec\_F} & A list of server indices \\
+$shares$ & \texttt{const vec\_F} & A list of server shares \\
+\end{tabular}
+
+\section*{Return Value}
+
+\textbf{NEEDS TO BE CHECKED}
+
+A 2-variable function $Q(x,z) \in \mathbb{F}[z][x]$ of type \texttt{FXY} such that for every $g(x)$ with degree at most $\ell$ that
+agrees with at least $n-e=\barred{shares}-e$ shares, $g(x)$ is a root of $Q(x,z)$.
+
+\section*{Description}
+
+\begin{enumerate}
+\item Define the following:
+		\begin{itemize}
+		\item $n = \barred{shares}$
+		\item $m = \lceil \frac{2hn}{h^2-\ell n} \rceil$
+		\item $k = \lfloor \frac{hm}{n} \rfloor - 1$
+		\item $t = m - k$
+		\item $p(z) = \displaystyle\prod_{i=0}^{n-1}\paren{z-x_i} \in \mathbb{F}[z]$
+		\item $f(x) = \displaystyle\sum_{i=0}^{n-1}\paren{x-y_i}\displaystyle\prod_{\substack{j=0\\j \neq i}}^{n-1}\frac{z-x_j}{x_i-x_j} 
+						\in \mathbb{F}[z][x]$
+		\end{itemize}
+		Where $\paren{x_i,y_i}$ for $0 \leq i < n$ are index/share pairs.
+		
+\newpage
+\item Create a polynomial lattice $\mathcal{L}$ with basis being the coefficient vectors $q(z)$ of the $x$ terms of
+		\[f(z^\ell x)^ip(z)^{k-i} \textrm{\quad for \quad} 0 \leq i < k\]
+		\[(z^\ell x)^jf(z^\ell x)^k \textrm{\quad for \quad} 0 \leq j < t\]
+		
+		\textbf{CAN POSSIBLY REDUCE COEFFICIENTS MOD $p(z)^k$}
+
+\item Reduce the lattice $\mathcal{L}$ to find a vector $\paren{q_0(z), q_1(z), \ldots, q_{k+t-1}(z)}$ that has small degree.
+		Since vectors in $\mathcal{L}$ represent polynomials in $\mathbb{F}[z][x]$, we can represent this vector as our result 
+		\[Q(x,z) = q_0(z)+q_1(z)x+\ldots+q_{k+t-1}(z)x^{k+t-1}\]
+\end{enumerate}
+
+\end{document}

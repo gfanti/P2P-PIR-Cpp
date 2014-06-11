@@ -1,0 +1,36 @@
+
+Documentation for PercyDistServer class.
+
+These classes are used to distribute the server operations of Percy++ over a
+number of servers.
+
+
+A) PARAMS CLASS
+
+The PercyDistServerParams class contains some special parameters:
+
+    vsplit      The number of sets that the rows of the database is evenly
+		split into
+    hsplit	The number of sets that the columns of the database is evenly
+		split into
+    workerio    Contains the iostreams used to communicate with the workers.
+
+    ** All other parameters are inherited from PercyServerParams.
+
+Worker iostreams in workerio are managed using the functions:
+
+    set_workerio()	    Sets the worker iostream for a given worker
+    unset_workerio()	    Unsets the worker iostream for a given worker
+    have_all_workerio()	    Returns true if all vsplit*hsplit worker iostreams
+			    have been set.
+    get_workerio()	    Returns the vector of worker iostreams.
+
+
+B) SERVER CLASS
+
+The PercyMasterServer class receives requests from a client using
+handle_request, send the partial queries to the workers, combines the results
+and sends them back to the client.
+
+The handle_requests function is called just as in the base class PercyServer.
+

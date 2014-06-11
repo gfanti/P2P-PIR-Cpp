@@ -1,0 +1,99 @@
+
+Documentation of PercyParams classes
+
+The PercyParams class is used to store any parameters that may be needed by the
+Percy++ client or server.
+
+
+A) MODE
+
+The mode represents what PIR scheme is used (Chor or Goldberg) and what field
+is used.  Valid modes are
+
+    MODE_ZZ_P	Goldberg's scheme with computation in the field ZZ_p for some
+		prime p.
+    MODE_GF28	Goldberg's scheme with computation in the field GF(2^8).
+    MODE_GF216	Goldberg's scheme with computation in the field GF(2^16).
+    MODE_CHOR	Chor's scheme
+
+
+B) THREADING PARAMETERS
+
+The PercyThreadMethod represents which threading method will be used if
+threading is used.  Valid methods are
+
+    THREAD_METHOD_NONE	    Does not thread, but does the workers' computation
+			    in series (essentially for testing).
+    THREAD_METHOD_PTHREAD   Uses the pthread library for forking.  This method
+			    cannot be used in the field ZZ_p due to
+			    incompatibility.
+    THREAD_METHOD_FORK	    Forks workers instead of using threads.  This
+			    method can be used in the field ZZ_p.
+
+The PercyThreadingType represents how the database will be split if threading
+is used.  Valid types are
+
+    THREADING_ROWS	Each worker does the computation for a subset of the
+			rows of the database (for every query)
+    THREADING_QUERIES	The set of queries is split up evenly between workers
+			and they each use the entire database.
+
+
+C) BASE PARAMETERS CLASS
+
+The PercyParams class holds parameters that are used by both the client and
+ther server.
+
+The parameter access methods are:
+
+    modulus_bytes()	The bytes needed to represent the ZZ_p modulus
+    bytes_per_word()	The bytes per database word
+    words_per_block()	The words per database block
+    num_blocks()	The number of blocks in the database
+    bytes_per_block()	The bytes per database block
+    tau()		The value of tau when tau-independence is used
+    get_modulus()	The modulus for ZZ_p computation
+    get_mode()		The mode (see section A)
+
+The following access methods are used for SPIR
+
+    get_pcparamsfilename()
+    get_pcparamsp()
+
+The following access methods are used for hybrid protection
+
+    modulussq_bytes()
+    get_modulussq()
+    get_g()
+    hybrid()
+
+Input and output stream operators (>>, <<) are also provided.
+
+
+D) CLIENT PARAMS
+
+The PercyClientParams holds client-only parameters.
+
+The access methods for these parameters are:
+
+    get_p1()	First factor for the public/private key pair for decoding over
+		ZZ_p
+    get_p2()	Second factor for the public/private key pair for decoding over
+		ZZ_p
+
+
+E) SERVER PARAMS
+
+The PercyServerParams holds server-only parameters.
+
+The access methods for these parameters are:
+
+    get_sid()		The server ID of the server.  Needed for SPIR and
+			tau-independence.
+    is_byzantine()	True is the server will use byzantine behaviour.  False
+			otherwise.
+    get_num_threads()	When threading is used, the number of worker threads
+			used.
+    get_ttype()		The type of threading used (see section B)
+    get_tmethod()	The method to use for threading (see section B)
+

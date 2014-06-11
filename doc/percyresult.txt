@@ -1,0 +1,15 @@
+
+Documentation for the results classes
+
+A) SINGLE RESULT
+
+The PercyResult class represents a valid decoding result.  It contains the good
+servers and a string representing the block.
+
+
+B) BLOCK RESULTS
+
+The PercyBlockResults class represents all of the possible decodings for a
+particular block.  It contains the block number and the possible result
+objects.
+

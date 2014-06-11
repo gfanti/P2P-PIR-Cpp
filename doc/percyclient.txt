@@ -1,0 +1,54 @@
+
+Documentation for PercyClient class.
+
+The PercyClient is an abstract base that whose functions are used to query a
+database, receive the replies and decode the results.
+
+
+A) CLASS METHODS
+
+static PercyClient * make_client (PercyClientParams &params, 
+	nservers_t num_servers, nservers_t t, sid_t * sids = NULL);
+
+    Allocates and instantiates a PercyClient derived class based on the value
+    of params.get_mode().  The result of this function is a pointer to the
+    PercyClass derived object and must be deallocated when finished.
+
+int send_request(vector<dbsize_t> block_numbers, 
+	std::vector<ostream*> &osvec);
+
+    Creates shares for the given block numbers and send them to the servers
+    that read from osvec.  (Pure virtual)
+
+nservers_t receive_replies(std::vector<istream*> &isvec);
+
+    Receives the replies from the servers that write to isvec for all blocks
+    previously queries (and not yet received).  (Pure virtual)
+
+nqueries_t process_replies(nservers_t h, 
+	vector<PercyBlockResults> &results);
+
+    Decodes the responses from the servers using the RSDecoder.  (Pure virtual)
+
+nqueries_t fetch_blocks(vector<dbsize_t> block_numbers,
+	vector<ostream*> &osvec, vector<istream*> &isvec,
+	vector<PercyBlockResults> &current_results,
+	vector<PercyBlockResults> &previous_results);
+nqueries_t fetch_blocks(vector<dbsize_t> block_numbers,
+	vector<ostream*> &osvec, vector<istream*> &isvec,
+	vector<PercyBlockResults> &current_results);
+
+    Combines send_request, receive_replies and process_replies in one
+    functions.
+
+
+b) DERIVED CLASSES
+
+PercyClient_ZZ_p    Defines the virtual functions over the field ZZ_p for some
+		    prime p
+
+PercyClient_GF2E    Defines the virtual functions over the field GF2E for some
+		    E
+
+PercyClient_Chor    Defines the virtual functions for Chor's IT-PIR algorithm.
+

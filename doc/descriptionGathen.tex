@@ -1,0 +1,88 @@
+\documentclass[10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage[table]{xcolor}
+\usepackage{fullpage}
+\usepackage{amsthm}
+\usepackage{hanging}
+\usepackage{colortbl}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\newcommand{\barred}[1]
+	{\left| #1 \right|}
+\newcommand{\paren}[1]
+	{\left( #1 \right)}
+\newcommand{\braced}[1]
+	{\left\{ #1 \right\}}
+
+\begin{document}
+\lhead{$ $Id: description.tex 4 2011-09-16 17:57:22Z iang $ $}
+\lfoot{$ $Rev: 4 $ $}
+\pagestyle{fancy}
+
+
+\setlength{\parindent}{0pt}
+
+%\raggedright
+
+\title{\textbf{Description of \texttt{reduce\_lattice\_gathen()}}}
+\date{\today}
+\author{Casey Devet}
+
+\maketitle
+\thispagestyle{fancy}
+
+\setlength{\parskip}{12pt}
+
+\section*{Input}
+
+\begin{tabular}{p{1in}p{1in}p{4in}}
+\textbf{Name} & \textbf{Type} & \textbf{Description} \\ \hline
+$lattice$ & \texttt{mat\_FX} & An $n \times n$ matrix with elements in $\mathbb{F}[z]$ whose rows represent 
+											the basis of a polynomial lattice \\
+\end{tabular}
+
+\section*{Return Value}
+
+Perform lattice reduction on an $n \times n$ matrix with elements in
+$\mathbb{F}[z]$ whose rows represent the basis of a polynomial lattice.
+The returned matrix is such that the first row is the ``smallest''
+vector in the lattice using the non-Archimedean norm
+$\barred{\paren{v_1,v_2,...,v_n}} = max\paren{deg_z\paren{v_i(z)} : 1 \leq i \leq n}$.
+
+\section*{Description}
+
+\begin{enumerate}
+\item Define the following:
+		\begin{itemize}
+		\item $n = \barred{lattice}$
+		\item $k = 0$
+		\item $A = I_{n \times n} = n \times n$ identity matrix
+		\item $g_i = i^{\textrm{th}}$ row of $lattice$ for $0 \leq i < n$
+		\end{itemize}
+		We define the non-Archimedean norm as $w(g_i) = max\paren{deg_z\paren{g_{ij}(z)} : 0 \leq j < n}$.
+		
+\item While $k \leq n$:
+		\begin{enumerate}
+		\item Choose $m$ with $k \leq m < n$ and $w(g_m) = min\braced{w(g_i) : k \leq i < n} = u$.
+				That is, $m$ is the row of the matrix with index at least $k$ that has the smallest norm $w(g_m)$.
+				Interchange $g_k$ and $g_m$.
+		\item For $i$ in the decreasing range $k-1, \ldots, 0$:
+				\begin{enumerate}
+				\item Set $q = g_{ki} / g_{ii} \in \mathbb{F}[z]$.  That is $q$ is the quotient when dividing $g_ki$ by $g_ii$.
+				\item Replace $g_k$ by $g_k - qg_i$.
+				\end{enumerate}
+		\item If $w(g_k) = u$, then find a column $\ell$ of the lattice basis such that $w(g_{k\ell}) = w(g_k)$.
+				Interchange columns $k$ and $\ell$.  Let the matrix $B$ represent this column permutation.  Set $k$ to $k + 1$
+				and set $A$ to $AB$.
+		\item If $w(g_k) < u$, then set $k$ to $max\paren{\braced{i : 0 \leq i < k - 1 \textrm{ and } w(g_i) \leq w(g_k)} \cup \{0\}}$.
+		\end{enumerate}
+\item Return $\paren{Ag_0, Ag_1, \ldots, Ag_{n-1}}$
+\end{enumerate}
+
+\end{document}

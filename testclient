@@ -1,0 +1,419 @@
+#!/bin/bash
+
+##  Percy++ Copyright 2007,2012,2013 Ian Goldberg <iang@cs.uwaterloo.ca>,
+##  Casey Devet <cjdevet@cs.uwaterloo.ca>,
+##  Paul Hendry <pshdenry@uwaterloo.ca>,
+##  Ryan Henry <rhenry@cs.uwaterloo.ca>
+##
+##  This program is free software; you can redistribute it and/or modify
+##  it under the terms of version 2 of the GNU General Public License as
+##  published by the Free Software Foundation.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  There is a copy of the GNU General Public License in the COPYING file
+##  packaged with this plugin; if you cannot find it, write to the Free
+##  Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+##  02110-1301 USA
+
+function usage {
+    echo "Usage: $EXE ell t [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "    -m METHOD       The method to use.  (Default: w32)"
+    echo "    -z NUM_BYZ      The number of byzantine servers.  (Default: 0)"
+    echo "    -q NUM_QUERIES  The number of random blocks to query for."
+    echo "                    (Default: 1)"
+    echo "    -B BLOCKS       Specify the blocks to query using a space-delimited string"
+    echo "    -d DATABASE     The database file to use (Default: database)"
+    echo "    -t TAU          Tau-independence value of database shares (Default: 0)"
+    echo "    -T THREADS      Use threading and specify the number of threads per server"
+    echo "    -P TTYPE        Specify how the database is split when threading"
+    echo "                    (see pirserver usage for available types)"
+    echo "    -Q TMETHOD      Specify the method used when threading"
+    echo "                    (see pirserver usage for available types)"
+    echo "    --verbose       Print extra debugging output."
+    echo "    --gdb           Run pirclient under gdb."
+    echo "    --no-kill       Do not kill the servers after running."
+    echo "    --help          Display this message"
+    echo
+    echo "Available methods are {w160, w32, w16, w8, smalldb, gf28, gf216, chor, spir}."
+    echo
+}
+
+## If --help is in arguments, print usage message
+if [ "$1" == "--help" ]; then
+    usage
+    exit 0
+fi
+
+##  This script is used to run simple tests on the client
+
+## Sanity tests, from Len Sassaman
+
+## Make sure we've run "make":
+if test -e pirclient.cc -a ! -e pirclient -o -e pirclient.cc -a ! -e pirserver
+then
+   echo "Error:"
+   echo "You must build the Percy++ tools before running testclient."
+   echo "Please see the README for instructions."
+   exit 1
+fi
+
+## Make sure we can see the percy tools:
+if test ! -e pirclient -o ! -e pirserver
+then
+   echo "Error:"
+   echo "Cannot find local instances of Percy++ tools."
+   echo "Percy++ testclient must be invoked in the same directory"
+   echo "as the Percy++ tools, usually percy++-(version number)."
+   exit 1
+fi
+
+## Make sure we can call the percy tools:
+if test ! -x pirclient -o ! -x pirserver
+then
+   echo "Error:"
+   echo "Percy++ tools are not executable; please check permissions."
+   exit 1
+fi
+
+## Remove the database file if it's unreadable
+if test -e database -a ! -r database
+then
+   echo "Removing unreadable database."
+   rm -f database
+fi
+
+## Create the database if it's not there
+if test ! -e database
+then
+   dd if=/dev/urandom bs=2048 count=3072 of=database
+   echo "Created test database."
+fi
+
+EXE=$0
+
+
+if [ $# -lt 2 ]; then
+    usage
+    exit 1
+fi
+
+NUM_SERVERS=$1
+shift
+PRIVACY_LEVEL=$1
+shift
+
+DATABASE=database
+METHOD=w32
+NUM_BYZ=0
+VERBOSE=FALSE
+NO_KILL=FALSE
+GDB=FALSE
+NUM_QUERIES=1
+TAUGTZERO=FALSE
+SERVER_FLAGS=""
+CLIENT_FLAGS=""
+BLOCKS=""
+while [ $# -gt 0 ]; do
+    case $1 in
+        "-m" )
+            METHOD=$2
+            shift 2 ;;
+        "-z" )
+            NUM_BYZ=$2
+            shift 2 ;;
+        "-q" )
+            NUM_QUERIES=$2
+            shift 2 ;;
+	"-B" )
+	    BLOCKS=$2
+	    shift 2 ;;
+        "-d" )
+            DATABASE=$2
+            shift 2 ;;
+        "-t" )
+            TAUGTZERO=TRUE
+            SERVER_FLAGS="$SERVER_FLAGS -t"
+            CLIENT_FLAGS="$CLIENT_FLAGS -t $2"
+            shift 2 ;;
+	"-T" )
+	    SERVER_FLAGS="$SERVER_FLAGS -T $2"
+	    shift 2 ;;
+	"-P" )
+	    SERVER_FLAGS="$SERVER_FLAGS -P $2"
+	    shift 2 ;;
+	"-Q" )
+	    SERVER_FLAGS="$SERVER_FLAGS -Q $2"
+	    shift 2 ;;
+        "--gdb" )
+            GDB=TRUE
+            shift 1 ;;
+        "--verbose" )
+            VERBOSE=TRUE
+            shift 1 ;;
+        "--no-kill" )
+            NO_KILL=TRUE
+            shift 1 ;;
+        "--help" )
+            usage
+            exit 0 ;;
+        * )
+            usage
+            exit 1 ;;
+    esac
+done
+
+## Specify values for methods
+
+case $METHOD in
+    w160 )
+        DATABASE_SIZE=5242880
+        BLOCK_SIZE=10240
+        NUM_BLOCKS=512
+        WORDS_PER_BLOCK=512
+        WORD_SIZE=160
+        SERVER_FLAGS="$SERVER_FLAGS" ;;
+    w32 )
+        DATABASE_SIZE=4194304
+        BLOCK_SIZE=4096
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=32
+        SERVER_FLAGS="$SERVER_FLAGS" ;;
+    w16 )
+        DATABASE_SIZE=2097152
+        BLOCK_SIZE=2048
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=16
+        SERVER_FLAGS="$SERVER_FLAGS" ;;
+    w8 )
+        DATABASE_SIZE=1048576
+        BLOCK_SIZE=1024
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS" ;;
+    smalldb )
+        DATABASE_SIZE=256
+        BLOCK_SIZE=16
+        NUM_BLOCKS=16
+        WORDS_PER_BLOCK=16
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS" ;;
+    smallgf28 )
+        DATABASE_SIZE=256
+        BLOCK_SIZE=16
+        NUM_BLOCKS=16
+        WORDS_PER_BLOCK=16
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS -mg"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mg" ;;
+    gf28 )
+        DATABASE_SIZE=1048576
+        BLOCK_SIZE=1024
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS -mg"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mg" ;;
+    gf28test )
+        DATABASE_SIZE=2147483648
+        BLOCK_SIZE=2097152
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=2097152
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS -mg"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mg" ;;
+    gf28l )
+        DATABASE_SIZE=1073741824
+        BLOCK_SIZE=32768
+        NUM_BLOCKS=32768
+        WORDS_PER_BLOCK=32768
+        WORD_SIZE=8
+        SERVER_FLAGS="$SERVER_FLAGS -mg"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mg" ;;
+    gf216 )
+        DATABASE_SIZE=2097152
+        BLOCK_SIZE=2048
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=16
+        SERVER_FLAGS="$SERVER_FLAGS -ms"
+        CLIENT_FLAGS="$CLIENT_FLAGS -ms" ;;
+    gf216l )
+        DATABASE_SIZE=536870912
+        BLOCK_SIZE=32768
+        NUM_BLOCKS=16384
+        WORDS_PER_BLOCK=16384
+        WORD_SIZE=16
+        SERVER_FLAGS="$SERVER_FLAGS -ms"
+        CLIENT_FLAGS="$CLIENT_FLAGS -ms" ;;
+    chor )
+        DATABASE_SIZE=2097152
+        BLOCK_SIZE=512
+        NUM_BLOCKS=4096
+        WORDS_PER_BLOCK=4096
+        WORD_SIZE=1
+        SERVER_FLAGS="$SERVER_FLAGS -mc"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mc" ;;
+    chorl )
+        DATABASE_SIZE=2147483648
+        BLOCK_SIZE=16384
+        NUM_BLOCKS=131072
+        WORDS_PER_BLOCK=131072
+        WORD_SIZE=1
+        SERVER_FLAGS="$SERVER_FLAGS -mc"
+        CLIENT_FLAGS="$CLIENT_FLAGS -mc" ;;
+    spir )
+        DATABASE_SIZE=5242880
+        BLOCK_SIZE=10240
+        NUM_BLOCKS=512
+        WORDS_PER_BLOCK=512
+        WORD_SIZE=160
+        SERVER_FLAGS="$SERVER_FLAGS -s polycommit.params"
+        CLIENT_FLAGS="$CLIENT_FLAGS -s polycommit.params" ;;
+    * )
+        usage
+        exit 1 ;;
+esac
+
+
+## Function to kill all pirserver processes.
+
+function killservers {
+    if [ $NO_KILL != TRUE ]; then
+        echo "Killing all servers..."
+        if [ $VERBOSE ]; then
+            killall -9 pirserver > /dev/null 2>&1
+        else
+            killall -9 pirserver
+        fi
+    fi
+}
+
+
+## Start the servers
+
+PORTNO=31337
+PIDS=""
+SERVER_ARG=""
+CLIENT_OUTFILE=/tmp/client.out
+REAL_OUTFILE=/tmp/real.out
+for (( i = 1; i <= $NUM_SERVERS; i++ )) do
+    echo "Starting server $i..."
+    if [ $i -le $NUM_BYZ ]; then
+        BYZ_FLAG="-z"
+    else
+        BYZ_FLAG=""
+    fi
+    if [ $TAUGTZERO == TRUE ]; then
+        DBSUFFIX=".$i"
+    else
+        DBSUFFIX=""
+    fi
+    COMMAND="./pirserver $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
+    if [ $VERBOSE == TRUE ]; then
+        echo "$COMMAND &"
+        $COMMAND &
+    else
+        $COMMAND > /dev/null 2>&1 &
+    fi
+    RET=$!
+
+    if [ "$PIDS" == "" ]; then
+        PIDS=$RET
+    else
+        PIDS="$PIDS $RET"
+    fi
+    if [ "$SERVER_ARG" == "" ]; then
+        SERVER_ARG="$i:localhost:$PORTNO"
+    else
+        SERVER_ARG="$SERVER_ARG $i:localhost:$PORTNO"
+    fi
+
+    PORTNO=$(($PORTNO+1))
+done
+
+
+## Choose blocks to query
+
+if [ "$BLOCKS" = "" ]; then
+    BLOCKS="$[$RANDOM % $NUM_BLOCKS]"
+    for (( i = 1; i < $NUM_QUERIES; i++ )) do
+	BLOCKS="$BLOCKS $[$RANDOM % $NUM_BLOCKS]"
+    done
+fi
+
+
+## Run the client
+
+echo "Starting the client ..."
+COMMAND="./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
+if [ $VERBOSE == TRUE ]; then
+    echo $COMMAND
+fi
+if [ $GDB == TRUE ]; then
+    echo $COMMAND ">" $CLIENT_OUTFILE
+    gdb ./pirclient
+else
+    ./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+    if [ $? -ne 0 ]; then
+	echo "The client did not finish correctly!"
+	killservers
+	exit 1
+    fi
+fi
+
+
+## Create file of wanted results
+rm $REAL_OUTFILE > /dev/null 2>&1
+for BLOCK in $BLOCKS; do
+    dd if=$DATABASE bs=$BLOCK_SIZE skip=$BLOCK count=1 >> $REAL_OUTFILE 2> /dev/null
+done
+echo
+cblocks=`ls -l --block-size=$BLOCK_SIZE $CLIENT_OUTFILE | cut -d' ' -f5`
+cindex=0
+rindex=0
+for BLOCK in $BLOCKS; do
+    dd if=$REAL_OUTFILE bs=$BLOCK_SIZE skip=$rindex count=1 > $REAL_OUTFILE.current 2> /dev/null
+    while [ 0 ]; do
+        if [ $cindex -ge $cblocks ]; then
+            echo "Block #$(($rindex+1)) ($BLOCK) did not match!"
+            echo "Failed to match all blocks!  Use cmp to compare the files:"
+            echo
+            echo "    Client Output: $CLIENT_OUTFILE"
+            echo "    Actual Blocks: $REAL_OUTFILE"
+            echo
+            rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
+            killservers
+            exit 1    
+        fi
+        dd if=$CLIENT_OUTFILE bs=$BLOCK_SIZE skip=$cindex count=1 > $CLIENT_OUTFILE.current 2> /dev/null
+        if cmp $CLIENT_OUTFILE.current $REAL_OUTFILE.current > /dev/null 2>&1; then
+            echo "Block #$(($rindex+1)) ($BLOCK) matched block #$(($cindex+1)) of client output!"
+            break
+        fi
+        cindex=$[$cindex + 1]
+    done
+    cindex=$[$cindex + 1]
+    rindex=$[$rindex + 1]
+done
+echo "All blocks were successfully matched!"
+echo
+rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
+
+
+## Kill the servers
+killservers
+
+
+## Return zero is passed, one if failed
+exit 0
+
+

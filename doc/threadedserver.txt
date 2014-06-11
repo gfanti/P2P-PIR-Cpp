@@ -1,0 +1,47 @@
+
+Documentation for PercyDistServer class.
+
+These classes are used to distribute the server operations of Percy++ over a
+number of servers.
+
+
+A) DATASTORE
+
+The ThreadedDataStore class contains the memory map of the database.  It is
+instantiated with the same parameters as the base class FileDataStore.  It also
+contains pointers to the sub datastores that are used by the threads and can be
+accessed with get_subds().
+
+
+B) STREAM BUFFER
+
+The ThreadStreamBuf is a stream buffer used to read from or write to buffers
+that are already in memory using an iostream.  A pointer to a ThreadStreamBuf
+is passed into std::iostream() to create an iostream using its buffers.
+
+You can add a buffer of a particular length to in instream or outstream using
+the functions:
+
+    add_inbuffer()
+    add_outbuffer()
+
+You can check if the buffers are all read/written to using the functions:
+
+    in_eof()
+    out_eof()
+
+All other methods are inherited from std::streambuf.
+
+
+C) SERVER CLASS
+
+The PercyMasterServer class receives requests from a client using
+handle_request, send the partial queries to the worker threads, combines the
+results and sends them back to the client.
+
+When using handle_request, the value of params.get_ttype() indicates which way
+to split the database.  The value of params.get_tmethod() indicates when to use
+pthreads, fork or a (non-threaded) series for threading.
+
+The handle_requests function is called just as in the base class PercyServer.
+

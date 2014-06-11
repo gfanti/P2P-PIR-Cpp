@@ -1,0 +1,20 @@
+
+Documentation for Percy++ server class
+
+The PercyServer is used to perform the database operations on the server side
+of Percy++.
+
+
+A) SERVER
+
+The PercyServer is a used for database operations of the PIR schemes.
+
+virtual bool handle_request(PercyServerParams &params, std::istream &is,
+	std::ostream &os);
+
+    This function is used to perform the database operations for the server.
+    The server reads the queries from is, performs the operations and returns
+    the result to os.
+
+    This function is virtual and can be overriden in derived classes.
+

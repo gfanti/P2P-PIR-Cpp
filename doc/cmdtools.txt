@@ -1,0 +1,37 @@
+
+Documentation for the cmdtools.h
+
+cmdtools.h includes functions to handle the command line arguments.
+
+
+A) ParsedArgs STRUCTURE
+
+A ParsedArgs object contains the results of parsing the command line options
+and arguments.  The members are:
+
+    exec	Contains the executable name (argv[0])
+    opts        A map of the valid options
+    nonoptc     The number of non-option arguments
+    nonoptv     The non-option arguments
+
+
+B) PARSING COMMAND LINE OPTIONS/ARGUMENTS
+
+bool parse_long_opts (int argc, char ** argv, const char * shortopts, 
+	const struct option * longopts, ParsedArgs& retmap);
+
+    Parses the command line options and arguments.  This function takes as
+    parameters:
+
+        argc        The number of command line arguments
+	argv        The command line argument.
+	shortopts   A string containing the short options.  A character
+	            followed by a colon (':') has a required value.
+	longopts    An array of options objects, each containing information
+	            about a valid long options (see get_logopts() for more
+		    info).
+	retmap      The ParsedArgs object that is the results of the call.
+
+    The function returns true if all options are valid and everyhing is parsed
+    without error.  Otherwise, it returns false.
+

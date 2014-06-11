@@ -1,0 +1,536 @@
+//  Percy++ Copyright 2007,2012,2013 Ian Goldberg <iang@cs.uwaterloo.ca>,
+//  Casey Devet <cjdevet@cs.uwaterloo.ca>,
+//  Paul Hendry <pshdenry@uwaterloo.ca>,
+//  Ryan Henry <rhenry@cs.uwaterloo.ca>
+//
+//  This program is free software; you can redistribute it and/or modify
+//  it under the terms of version 2 of the GNU General Public License as
+//  published by the Free Software Foundation.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  There is a copy of the GNU General Public License in the COPYING file
+//  packaged with this plugin; if you cannot find it, write to the Free
+//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+//  02110-1301 USA
+
+#ifndef __PERCYCLIENT_IMPL_H__
+#define __PERCYCLIENT_IMPL_H__
+
+#include <iostream>
+#include <algorithm>
+#include "gf2e.h"
+#include "percyparams.h"
+#include "percyresult.h"
+
+template <typename GF2E_Element>
+inline void setCoeffs(GF2X &GF2X_P);
+
+template <>
+inline void setCoeffs<GF28_Element>(GF2X &GF2X_P) {
+    SetCoeff(GF2X_P, 8, 1);
+    SetCoeff(GF2X_P, 4, 1);
+    SetCoeff(GF2X_P, 3, 1);
+    SetCoeff(GF2X_P, 1, 1);
+    SetCoeff(GF2X_P, 0, 1);
+}
+
+template <>
+inline void setCoeffs<GF216_Element>(GF2X &GF2X_P) {
+    SetCoeff(GF2X_P, 16, 1);
+    SetCoeff(GF2X_P, 14, 1);
+    SetCoeff(GF2X_P, 12, 1);
+    SetCoeff(GF2X_P, 7, 1);
+    SetCoeff(GF2X_P, 6, 1);
+    SetCoeff(GF2X_P, 4, 1);
+    SetCoeff(GF2X_P, 2, 1);
+    SetCoeff(GF2X_P, 1, 1);
+    SetCoeff(GF2X_P, 0, 1);
+}
+
+// Constructor and destructor
+template <typename GF2E_Element>
+PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E (PercyClientParams &params,
+	nservers_t num_servers, nservers_t t, sid_t * sids) :
+    PercyClient(params, num_servers, t),
+    indices(),
+    randmults(),
+    answers(),
+    unfinished_results(),
+    decoded()
+{
+    // Initialize the GF2E modulus
+    GF2X MODULUS_P;
+    setCoeffs<GF2E_Element>(MODULUS_P);
+
+    GF2E::init(MODULUS_P);
+    GF2X::HexOutput = 1;
+
+    choose_indices(sids);
+}
+
+template <typename GF2E_Element>
+PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E (
+	const PercyClient_GF2E<GF2E_Element> &other) :
+    PercyClient(other),
+    indices(new GF2E_Element[num_servers]),
+    indices_ntl(other.indices_ntl),
+    answers(vector<GF2E_Element *>(other.answers.size())),
+    answers_ntl(other.answers_ntl),
+    unfinished_results(other.unfinished_results),
+    decoded(other.decoded)
+{
+    dbsize_t words_per_block = params.words_per_block();
+    memcpy(indices, other.indices, num_servers * sizeof(GF2E_Element));
+    for (nqueries_t q = 0; q < answers.size(); ++q) {
+	answers[q] = new GF2E_Element[words_per_block * num_servers];
+	memcpy(answers[q], other.answers[q], words_per_block * num_servers *
+		sizeof(GF2E_Element));
+    }
+}
+
+template <typename GF2E_Element>
+PercyClient_GF2E<GF2E_Element>& PercyClient_GF2E<GF2E_Element>::operator= (
+	PercyClient_GF2E<GF2E_Element> other)
+{
+    PercyClient::operator=(other);
+    std::swap(indices, other.indices);
+    indices_ntl = other.indices_ntl;
+    randmults = other.randmults;
+    std::swap(answers, other.answers);
+    answers_ntl = other.answers_ntl;
+    unfinished_results = other.unfinished_results;
+    decoded = other.decoded;
+    return *this;
+}
+
+template <typename GF2E_Element>
+PercyClient_GF2E<GF2E_Element>::~PercyClient_GF2E ()
+{
+    if (indices != NULL) {
+	delete[] indices;
+    }
+    while (answers.size() > 0) {
+	if (answers.back() != NULL) {
+	    delete[] answers.back();
+	}
+	answers.pop_back();
+    }
+}
+
+
+// Generate t-private (t+1)-of-l shares of a given secret value.
+template <typename GF2E_Element>
+static void genshares_GF2E(nservers_t t, nservers_t l,
+    const GF2E_Element *indices, GF2E_Element *values, GF2E_Element secret)
+{
+    // Pick a random polynomial of degree t with the right constant term
+    GF2E_Element * coeffs = new GF2E_Element[t+1];
+    coeffs[0] = secret;
+    for (nservers_t i=1;i<=t;++i) {
+        coeffs[i] = RandomBits_ulong(8*sizeof(GF2E_Element));
+    }
+
+    // Evaluate the polynomial at each of the indices
+    for (nservers_t i=0; i<l; ++i) {
+        values[i] = evalpoly_GF2E<GF2E_Element>(coeffs, t, indices[i]);
+    }
+    delete[] coeffs;
+}
+
+template <typename GF2E_Element>
+void PercyClient_GF2E<GF2E_Element>::choose_indices(sid_t *sids) {
+    indices = new GF2E_Element[num_servers];
+    for (nservers_t j=0; j<num_servers; ++j) {
+        if (params.tau()) {
+            // Use the indices provided
+            indices[j] = (GF2E_Element)sids[j];
+        } else {
+            // Use random indices
+            GF2E_Element r;
+            bool ok = false;
+            do {
+                r = RandomLen_long(8*sizeof(GF2E_Element));
+                if (r != 0) {
+                    ok = true;
+                    for (nservers_t k=0;k<j;++k) {
+                        if (indices[k] == r) {
+                            ok = false;
+                        }
+                    }
+                }
+            } while (!ok);
+            indices[j] = r;
+        }
+    }
+
+    // Create NTL version
+    indices_ntl.SetLength(num_servers);
+    for (nservers_t ix=0; ix<num_servers; ++ix) {
+	conv(indices_ntl[ix],
+		GF2XFromBytes((unsigned char *)(indices + ix), 1));
+    }
+
+}
+
+// Send a request for the given block number (0-based) to the
+// servers connected with the ostreams in the given vector.
+template <typename GF2E_Element>
+int PercyClient_GF2E<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
+        std::vector<ostream*> &osvec)
+{
+    nqueries_t num_queries = block_numbers.size();
+
+    if (num_servers != osvec.size()) {
+        std::cerr << "Incorrect iostream vector size passed to "
+            "send_request_GF2E.\n";
+        std::cerr << "Was " << osvec.size() << ", should be " << num_servers
+            << ".\n";
+        return -1;
+    }
+
+    // Construct the vector of server indices
+    nqueries_t q;
+
+    // Generate random multiples (!= 0)
+    nqueries_t previous_queries = requested_blocks.size();
+    if (randomize) {
+        for (nqueries_t q = 0; q < num_queries; ++q) {
+            randmults.push_back(vector<GF2E_Element>());
+            vector<GF2E_Element>& query_randmults = randmults.back();
+            for (nservers_t j = 0; j < num_servers; ++j) {
+                GF2E_Element r = 0;
+                while (r == 0) {
+                    r = RandomLen_long(8*sizeof(GF2E_Element));
+                }
+                query_randmults.push_back(r);
+            }
+        }
+    }
+
+    // Construct the shares of the e_{index} vector
+    dbsize_t num_blocks = params.num_blocks();
+    GF2E_Element * shares = new GF2E_Element[num_queries * num_blocks * num_servers];
+
+    for (q=0; q<num_queries; ++q) {
+        for (dbsize_t i = 0; i < num_blocks; ++i) {
+            genshares_GF2E<GF2E_Element>(t, num_servers, indices,
+                    shares + (q * num_blocks + i) * num_servers, i == block_numbers[q]);
+        }
+    }
+
+    // Multiply shares by random multiples
+    if (randomize) {
+        for (nservers_t p = 0; p < num_servers; ++p) {
+            for (nqueries_t i = 0; i < num_queries; ++i) {
+                for (dbsize_t j = 0; j < num_blocks; ++j) {
+		    dbsize_t index = (i * num_blocks + j) * num_servers + p;
+		    shares[index] = 
+                        multiply_GF2E<GF2E_Element>(shares[index],
+                                randmults[i+previous_queries][p]);
+                }
+            }
+        }
+    }
+
+    // Send the params and query to each server
+    for (nservers_t j = 0; j < num_servers; ++j) {
+        unsigned char nq[2];
+        nq[0] = (q >> 8) & 0xff;
+        nq[1] = (q) & 0xff;
+        osvec[j]->write((char *)nq, 2);
+        for (q=0; q<num_queries; ++q) {
+            for (dbsize_t i = 0; i < num_blocks; ++i) {
+		dbsize_t index = (q * num_blocks + i) * num_servers + j;
+                char *shareptr = (char *)&(shares[index]);
+                osvec[j]->write(shareptr, sizeof(GF2E_Element));
+            }
+        }
+        osvec[j]->flush();
+    }
+
+    // Add block numbers to requests_blocks
+    for (q = 0; q < num_queries; ++q) {
+	requested_blocks.push_back(block_numbers[q]);
+    }
+
+    delete[] shares;
+
+    return 0;
+}
+
+// Receive the server's replies, and return a number of servers that
+// gave complete (but not necessarily correct) replies.
+template <typename GF2E_Element>
+nservers_t PercyClient_GF2E<GF2E_Element>::receive_replies (
+	std::vector<istream*> &isvec)
+{
+    dbsize_t words_per_block = params.words_per_block();
+    nqueries_t num_queries = requested_blocks.size();
+    nqueries_t q;
+
+    // The vector of servers that have responded properly
+    goodservers.clear();
+
+    // The responses from the servers
+    nqueries_t previous_queries = received_blocks.size();
+    for (q = 0; q < num_queries; ++q) {
+	answers.push_back(new GF2E_Element[words_per_block * num_servers]);
+    }
+    nqueries_t total_queries = answers.size();
+
+    // Read the replies
+    for (nservers_t j = 0; j < num_servers; ++j) {
+        bool isgood = true;
+        for (q=previous_queries; q<total_queries; ++q) {
+            for (dbsize_t i = 0; isgood && i < words_per_block; ++i) {
+                isvec[j]->read((char *)(answers[q] + i * num_servers + j),
+			sizeof(GF2E_Element));
+                if (isvec[j]->eof()) {
+                    std::cerr << "Server " << j+1 << " did not send complete reply.\n";
+                    std::cerr << "Marking server " << j+1 << " as bad.\n";
+                    isgood = false;
+                    break;
+                }
+                if ((dbsize_t)(isvec[j]->gcount()) < 1) {
+                    // Mark this server as bad
+                    std::cerr << "Marking server " << j+1 << " as bad.\n";
+                    isgood = false;
+                    break;
+                }
+            }
+        }
+        if (isgood) {
+            goodservers.push_back(j);
+        }
+    }
+
+    // Add to unfinished_results and decoded
+    for (q=0; q<num_queries; ++q) {
+	unfinished_results.push_back(
+		vector<DecoderResult<GF2E> >(1, DecoderResult<GF2E>(goodservers, map<dbsize_t, GF2E>())));
+	decoded.push_back(std::set<dbsize_t>());
+    }
+
+    // Moved block numbers from requests_blocks to received_blocks
+    for (q = 0; q < num_queries; ++q) {
+	received_blocks.push_back(requested_blocks[q]);
+    }
+    requested_blocks.clear();
+
+    // Remove random multiple
+    if (randomize) {
+        for (nservers_t j = 0; j < num_servers; ++j) {
+            for (nqueries_t q = 0; q < num_queries; ++q) {
+                GF2E_Element randmult_inv =
+                        inverse_GF2E<GF2E_Element>(randmults[q][j]);
+                for (dbsize_t i = 0; i < words_per_block; ++i) {
+                    answers[q+previous_queries][i*num_servers + j] = multiply_GF2E<GF2E_Element>(
+			    answers[q+previous_queries][i*num_servers + j], randmult_inv);
+                }
+            }
+        }
+	randmults.clear();
+    }
+
+    std::cerr << "Got replies...\n";
+
+    return goodservers.size();
+}
+
+// Construct the t+1 Lagrange coefficents to interpolate at the point
+// alpha from the source points
+// indices[goodservers[firstpoint .. firstpoint+numpoints-1]]
+template <typename GF2E_Element>
+void PercyClient_GF2E<GF2E_Element>::construct_lagrange_coeffs(GF2E_Element *coeffs,
+	GF2E_Element alpha, nservers_t firstpoint, nservers_t numpoints)
+{
+    for (nservers_t i=0; i < numpoints; ++i) {
+        GF2E_Element numer = 1, denom = 1;
+        for (nservers_t j=0; j < numpoints; ++j) {
+            if (j==i) continue;
+            GF2E_Element numerdiff = indices[goodservers[firstpoint+j]] ^
+	    		             alpha;
+            GF2E_Element denomdiff = indices[goodservers[firstpoint+j]] ^
+				     indices[goodservers[firstpoint+i]];
+            numer = multiply_GF2E<GF2E_Element>(numer, numerdiff);
+            denom = multiply_GF2E<GF2E_Element>(denom, denomdiff);
+        }
+        coeffs[i] = multiply_GF2E<GF2E_Element>(numer,
+			    inverse_GF2E<GF2E_Element>(denom));
+    }
+}
+
+// Do Lagrange interpolation of source values
+// answers[goodservers[firstpoint..firstpoint+numpoints-1]] with the
+// coefficients coeffs[0..t]
+template <typename GF2E_Element>
+inline GF2E_Element PercyClient_GF2E<GF2E_Element>::interpolate(
+	const GF2E_Element *word_answers, const GF2E_Element *coeffs, 
+	nservers_t firstpoint, nservers_t numpoints)
+{
+    GF2E_Element res = 0;
+
+    for (nservers_t i = 0; i < numpoints; ++i) {
+	res ^= multiply_GF2E<GF2E_Element>(coeffs[i],
+		word_answers[goodservers[firstpoint+i]]);
+    }
+
+    return res;
+}
+
+template <typename GF2E_Element>
+bool PercyClient_GF2E<GF2E_Element>::try_fast_recover(nservers_t h,
+	vector<PercyBlockResults> &results)
+{
+    dbsize_t words_per_block = params.words_per_block();
+    nqueries_t num_queries = answers.size();
+    nservers_t k = goodservers.size();
+
+    if (k <= t) return false;
+
+    // Construct the Lagrange coefficients for the target index 0, as
+    // well as for target indices[goodservers[0..(k-t-2)]] from the
+    // source indices[goodservers[k-t-1 .. k-1]]
+
+    // lagrange_coeffs[0] is the array of t+1 coeffs to interpolate 0
+    // largrnge_coeffs[a+1] is the array of t+1 coeffs to interpolate
+    //                                        indices[goodservers[a]]
+    GF2E_Element * lagrange_coeffs = new GF2E_Element[(k-t) * (t+1)];
+    construct_lagrange_coeffs(lagrange_coeffs, 0, k-t-1, t+1);
+    for (nservers_t a = 0; a < k-t-1; ++a) {
+	construct_lagrange_coeffs(lagrange_coeffs + (a+1) * (t+1),
+	    indices[goodservers[a]], k-t-1, t+1);
+    }
+
+    results.clear();
+    GF2E_Element *resblock = new GF2E_Element[words_per_block];
+    for (nqueries_t q = 0; q < num_queries; ++q) {
+	results.push_back(PercyBlockResults());
+	results.back().block_number = received_blocks[q];
+	for (dbsize_t word = 0; word < words_per_block; ++word) {
+	    // Check if all the servers agree
+	    bool match = true;
+	    for (nservers_t a = 0; a < k-t-1; ++a) {
+		GF2E_Element expectedans =
+			answers[q][word*num_servers + goodservers[a]];
+		GF2E_Element actualans = interpolate(
+			answers[q] + word*num_servers, lagrange_coeffs + (a+1) * (t+1), 
+			k-t-1, t+1);
+
+		if (expectedans != actualans) {
+		    match = false;
+		    break;
+		}
+	    }
+	    if (!match) {
+		delete[] lagrange_coeffs;
+		delete[] resblock;
+		results.clear();
+		return false;
+	    }
+	    resblock[word] = interpolate(answers[q] + word*num_servers, 
+		    lagrange_coeffs, k-t-1, t+1);
+	}
+	PercyResult thisresult(goodservers, string((char *)resblock, 
+		words_per_block*sizeof(GF2E_Element)));
+	results.back().results.push_back(thisresult);
+    }
+
+    delete[] lagrange_coeffs;
+    delete[] resblock;
+    return true;
+}
+
+//Process the received replies and return the decoded results as a
+//PercyResults object.
+template <typename GF2E_Element>
+nqueries_t PercyClient_GF2E<GF2E_Element>::process_replies (
+	nservers_t h, vector<PercyBlockResults> &results)
+{
+    dbsize_t words_per_block = params.words_per_block();
+    nservers_t tau = params.tau();
+
+    // Check that results is empty
+    if (!(results.empty())) {
+	std::cerr << "The results vector must be empty\n";
+	return false;
+    }
+
+    std::cerr << goodservers.size() << " of " << num_servers << " servers responded.\n";
+
+    if (try_fast_recover(h, results)) {
+	// Clean up
+	received_blocks.clear();
+	while (answers.size() > 0) {
+	    if (answers.back() != NULL) {
+		delete[] answers.back();
+	    }
+	    answers.pop_back();
+	}
+	answers_ntl.clear();
+	unfinished_results.clear();
+	decoded.clear();
+	return 0;
+    }
+
+    // Create NTL answers not yet created
+    for (nqueries_t q = answers_ntl.size(); q < received_blocks.size(); ++q) {
+	answers_ntl.push_back(vector<vec_GF2E>(words_per_block));
+	for (dbsize_t c = 0; c < words_per_block; ++c) {
+	    answers_ntl[q][c].SetLength(num_servers);
+	    for (nservers_t j = 0; j < num_servers; ++j) {
+		conv(answers_ntl[q][c][j],
+			GF2XFromBytes((unsigned char *)(answers[q] +
+			    c * num_servers + j), sizeof(GF2E_Element)));
+	    }
+	}
+    }
+
+    RSDecoder_GF2E decoder;
+
+    // Call the decoder's Recover method
+    bool res = decoder.Recover(sizeof(GF2E_Element), t+tau, h, goodservers,
+	    answers_ntl, indices_ntl, unfinished_results, decoded);
+
+    // Convert the results to PercyBlockResults
+    // Remove queries that are completely decoded
+    for (nqueries_t q = 0; q < received_blocks.size(); ++q) {
+	results.push_back(PercyBlockResults());
+	results.back().block_number = received_blocks[q];
+	vector<PercyResult> &block_results = results.back().results;
+
+	if (decoded[q].size() == words_per_block) {
+	    GF2E_Element *sigma = new GF2E_Element[words_per_block];
+	    for (dbsize_t i = 0; i < unfinished_results[q].size(); ++i) {
+		for (dbsize_t j = 0; j < words_per_block; ++j) {
+		    BytesFromGF2X((unsigned char *)(sigma + j),
+			    rep(unfinished_results[q][i].recovered[j]), 
+			    sizeof(GF2E_Element));
+		}
+		block_results.push_back(PercyResult(unfinished_results[q][i].G, 
+			string((char *)sigma, words_per_block * sizeof(GF2E_Element))));
+	    }
+	    delete[] sigma;
+
+	    // Remove query
+	    received_blocks.erase(received_blocks.begin() + q);
+	    if (answers[q] != NULL) {
+		delete[] answers[q];
+	    }
+	    answers.erase(answers.begin() + q);
+	    answers_ntl.erase(answers_ntl.begin() + q);
+	    unfinished_results.erase(unfinished_results.begin() + q);
+	    decoded.erase(decoded.begin() + q);
+	    --q;
+	}
+    }
+
+    (void)res;
+    return received_blocks.size();
+}
+
+#endif

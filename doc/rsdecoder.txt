@@ -1,0 +1,92 @@
+//  Percy++ Copyright 2007,2012,2013 Ian Goldberg <iang@cs.uwaterloo.ca>,
+//  Casey Devet <cjdevet@cs.uwaterloo.ca>,
+//  Paul Hendry <pshdenry@uwaterloo.ca>,
+//  Ryan Henry <rhenry@cs.uwaterloo.ca>
+//
+//  This program is free software; you can redistribute it and/or modify
+//  it under the terms of version 2 of the GNU General Public License as
+//  published by the Free Software Foundation.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  There is a copy of the GNU General Public License in the COPYING file
+//  packaged with this plugin; if you cannot find it, write to the Free
+//  Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+//  02110-1301 USA
+
+Documentation for the RSDecoder class
+
+The RSDecoder class is used to perform Reed-Solomon list decoding.
+
+The algorithm used in this decoder is described in:
+
+    C. Devet, I. Goldberg, and N. Heninger.  Optimally Robust Private 
+    Information Retrieval.  In 21st USENIX Security Symposium, 2012. 
+    http://eprint.iacr.org/2012/083
+
+
+A) CONSTRUCTOR
+
+RSDecoder<F, vec_F, FX, FXY, mat_F> ()
+RSDecoder<F, vec_F, FX, FXY, mat_F> (const ZZ &p1, const ZZ&p2)
+
+    See rsdecoder.h for the difference in constructors.  The template arguments are:
+
+        F       The field that the decoding will be over.
+        vec_F   An implementation of a vector in the field.
+        FX      An implementation of single-variate polynomials in the field.
+        FXY     An implementation of double-variate polynomials in the field.
+        mat_F   An implementation of matrices in the field.
+
+
+C) RECOVERY
+
+bool Recover (unsigned int bytes_per_word,
+        unsigned short t, unsigned short h,
+        const vector<unsigned short> &goodservers,
+        const vector<vector<vec_F> > &values, const vec_F &indices,
+	vector<vector<DecoderResult<F> > > &results,
+	vector<std::set<dbsize_t> > &decoded, const nqueries_t multi_only = 0);
+
+    To decode a query a user must use the Recover() function.  This function takes
+    as arguments:
+
+        bytes_per_word  The number of bytes in a word of the query.
+        t               The priority level.  That is, the degree of the polynomials
+                        that encode the data.
+        h               The number of honest servers.
+        goodservers     The set of indices for servers that are not known to be
+                        Byzantine
+        values          Contains the values to decode.  values[q][c][i] is the
+	                value for query q, word c, server i.
+        indices         The set of indices used in the queries.
+	results         The decoding results.  For each query q it contains the
+ 	                set of all possible decodings (so far).  All newly
+			decoded words are put here.
+	decoded         If decoded[q] contains c, then word c of query q is
+	                already decoded.  That is, values[q][c] have been
+			decoded and the results incorporated in to results[q].
+	multi_only      The first multi_only queries are only used in the
+	                multi-polynomial decoding algorithms.
+
+    The function returns true if all queries were decoded and false otherwise.
+    If false is returned, then more queries are required so that
+    multi-polynomial decoding can be performed.
+
+
+D) TESTING
+
+The decoder can be tested by making one of the following targets (for their
+respective fields):
+
+    time_findpolys
+    time_findpolys_gf28
+    time_findpolys_gf24
+    time_findpolys_w8
+    time_findpolys_w32
+
+For more information on these executables, run them with the --help flag set.
+

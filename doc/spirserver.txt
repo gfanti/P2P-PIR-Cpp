@@ -1,0 +1,30 @@
+
+Documentation for the server SPIR operations
+
+The SPIRServerQuery class holds all of the parameters necessary to perform the
+server side operations in of the SPIR protocol in:
+
+    Ryan Henry, Femi Olumofin, Ian Goldberg.  Practical PIR for Electronic
+    Commerce.  18th ACM Conference on Computer and Communications Security,
+    October 2011.
+
+
+A) METHODS
+
+bool read_spir_input (PercyServerParams& params, std::istream &is);
+
+    Reads the SPIR parameters send from the client and stores them in this
+    object.
+
+bool query_verification (PercyServerParams& params, vec_ZZ_p &inputvector);
+
+    Verifies the SPIR query and failes if not verified.
+
+bool init_randomization (PercyServerParams& params, unsigned char * prng_seed);
+
+    Initializes the randomization that will be added to each server response.
+
+bool randomize_response (vec_ZZ_p &response);
+
+    Adds a randomness to the server responses.
+

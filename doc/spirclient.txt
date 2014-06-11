@@ -1,0 +1,25 @@
+
+Documentation for client SPIR operations
+
+The SPIRClientQuery class contains holds all of the parameters needed for the
+client to perform the SPIR protocol as defined in: 
+
+    Ryan Henry, Femi Olumofin, Ian Goldberg.  Practical PIR for Electronic
+    Commerce.  18th ACM Conference on Computer and Communications Security,
+    October 2011.
+
+
+A) METHODS
+
+bool init_parameters (const PercyClientParams &params, 
+	nservers_t num_servers, nservers_t t, const dbsize_t block_number,
+	const vec_ZZ_p &indices, const vec_vec_ZZ_p &shares, 
+	const vec_ZZ_pX &polyvec);
+
+    Initializes all of the parameters that need to be sent to the server.
+
+bool send_to_server (const PercyClientParams &params, 
+	nservers_t server_index, std::ostream &os);
+
+    Sends the required SPIR parameters to the server.
+
