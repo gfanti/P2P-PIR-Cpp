@@ -10,11 +10,12 @@ A) MODE
 The mode represents what PIR scheme is used (Chor or Goldberg) and what field
 is used.  Valid modes are
 
-    MODE_ZZ_P	Goldberg's scheme with computation in the field ZZ_p for some
-		prime p.
-    MODE_GF28	Goldberg's scheme with computation in the field GF(2^8).
-    MODE_GF216	Goldberg's scheme with computation in the field GF(2^16).
-    MODE_CHOR	Chor's scheme
+    MODE_ZZ_P	        Goldberg's scheme with computation in the field ZZ_p for some prime p.
+    MODE_GF28	        Goldberg's scheme with computation in the field GF(2^8).
+    MODE_GF216	        Goldberg's scheme with computation in the field GF(2^16).
+    MODE_CHOR	        Chor's scheme
+    MODE_RS_SYNC	    Scheme for unsynchronized databases with Reed-Solomon decoding
+    MODE_PULSE_SYNC	    Scheme for unsynchronized databases with PULSE decoding
 
 
 B) THREADING PARAMETERS
@@ -46,14 +47,15 @@ ther server.
 
 The parameter access methods are:
 
-    modulus_bytes()	The bytes needed to represent the ZZ_p modulus
-    bytes_per_word()	The bytes per database word
-    words_per_block()	The words per database block
-    num_blocks()	The number of blocks in the database
-    bytes_per_block()	The bytes per database block
-    tau()		The value of tau when tau-independence is used
-    get_modulus()	The modulus for ZZ_p computation
-    get_mode()		The mode (see section A)
+    modulus_bytes()	        The bytes needed to represent the ZZ_p modulus
+    bytes_per_word()	    The bytes per database word
+    words_per_block()	    The words per database block
+    num_blocks()	        The number of blocks in the database
+    max_unsynchronized()	The words per database block
+    bytes_per_block()	    The bytes per database block
+    tau()		            The value of tau when tau-independence is used
+    get_modulus()	        The modulus for ZZ_p computation
+    get_mode()		        The mode (see section A)
 
 The following access methods are used for SPIR
 

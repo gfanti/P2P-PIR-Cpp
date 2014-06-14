@@ -32,7 +32,7 @@
 
 NTL_CLIENT
 
-enum PercyMode { MODE_ZZ_P, MODE_GF28, MODE_GF216, MODE_CHOR }; //, MODE_RS_SYNC, MODE_PULSE_SYNC };
+enum PercyMode { MODE_ZZ_P, MODE_GF28, MODE_GF216, MODE_CHOR, MODE_RS_SYNC}; //, MODE_PULSE_SYNC };
 
 enum PercyThreadMethod {THREAD_METHOD_NONE, THREAD_METHOD_PTHREAD, THREAD_METHOD_FORK};
 
@@ -49,7 +49,7 @@ public:
     PercyParams();
 
     // Use the given modulus directly; only encryption will be possible
-    PercyParams(dbsize_t words_per_block, dbsize_t num_blocks,
+    PercyParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ modulus, PercyMode mode,
 	    char *pcparams_file = NULL, bool do_spir = false);
 
@@ -69,6 +69,9 @@ public:
     }
     dbsize_t num_blocks() const {
 	return _num_blocks;
+    }
+    dbsize_t max_unsynchronized() const {
+	return _max_unsynchronized;
     }
     dbsize_t bytes_per_block() const {
 	return bytes_per_word() * _words_per_block;
@@ -125,7 +128,7 @@ protected:
     bool hybrid_protection;
     bool do_spir;
     nservers_t _tau;
-    dbsize_t _words_per_block, _num_blocks;
+    dbsize_t _words_per_block, _num_blocks, _max_unsynchronized;
     ZZ_pContext modctx, modsqctx;
     // Paillier public key
     ZZ modulus;
@@ -140,17 +143,17 @@ protected:
 class PercyClientParams : public PercyParams {
 public:
     // Use the given modulus directly; only encryption will be possible
-    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks,
+    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ modulus, PercyMode mode, char *pcparams_file=NULL, bool do_spir=false)
-        : PercyParams(words_per_block, num_blocks, tau, modulus, mode, 
+        : PercyParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, 
 		pcparams_file, do_spir) {}
 
     // Generate a new public/private key pair of the given keysize
-    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks,
+    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, unsigned long modulus_bits);
 
     // Use the given factors to generate a public/private key pair
-    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks,
+    PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ p, ZZ q);// : PercyParams(words_per_block, num_blocks, tau, p, q) {}
 
     // Decrypt the given ciphertext.  This routine will change the
@@ -165,7 +168,7 @@ public:
     ZZ get_p1() const { return p1; }
     ZZ get_p2() const { return p2; }
 protected:
-    void init_hybrid(dbsize_t words_per_block, dbsize_t num_blocks,
+    void init_hybrid(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ p, ZZ q);
     // Paillier private key
     ZZ lambda;
@@ -183,12 +186,12 @@ struct serverinfo {
 class PercyServerParams : public PercyParams {
 public:
     // Use the given modulus directly; only encryption will be possible
-    PercyServerParams(dbsize_t words_per_block, dbsize_t num_blocks,
+    PercyServerParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ modulus, PercyMode mode, bool be_byzantine,
 	    char *pcparams_filename, bool do_spir, nservers_t sid,
 	    dbsize_t num_threads = 0, PercyThreadingType ttype = THREADING_ROWS,
 	    PercyThreadMethod tmethod = THREAD_METHOD_PTHREAD) :
-	PercyParams(words_per_block, num_blocks, tau, modulus, mode, 
+	PercyParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, 
 		pcparams_filename, do_spir), 
 	sid(sid),
 	be_byzantine(be_byzantine),
@@ -202,6 +205,7 @@ public:
 	bool result = (this->get_mode() == other.get_mode())
 		&& (this->words_per_block() == other.words_per_block())
 		&& (this->num_blocks() == other.num_blocks())
+        && (this->max_unsynchronized() == other.max_unsynchronized())
 		&& (this->bytes_per_word() == other.bytes_per_word())
 		&& (this->tau() == other.tau())
 		&& (this->spir() == other.spir())

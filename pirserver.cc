@@ -100,7 +100,7 @@ void print_usage_options () {
     std::cerr << "                          ZZ_P        z            use arithmetic in Z mod p" << std::endl;
     std::cerr << "                          CHOR        c            use Chor et al.'s lightweight protocol" << std::endl;
     std::cerr << "                          RS_SYNC     r            use unsynchronized database scheme with Reed-Solomon decoding" << std::endl;
-    std::cerr << "                          PULSE_SYNC  p            use unsynchronized database scheme with PULSE decoding" << std::endl;    
+    // std::cerr << "                          PULSE_SYNC  p            use unsynchronized database scheme with PULSE decoding" << std::endl;    
     std::cerr << "                          (default: ZZ_P)" << std::endl;
 #ifdef SPIR_SUPPORT
     std::cerr << "   -s, --spir PCPARAMS    do symmetric PIR with specified PolyCommit" << std::endl;
@@ -220,6 +220,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
     dbbits_t n_bytes = 0;
     dbsize_t w = 0;
     dbsize_t b = 0;
+    dbsize_t max_unsynchronized = 0; //max number of unsynchronized records in the database
 
     // Threading parameters
     dbsize_t num_threads = 0;
@@ -238,6 +239,9 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
                 break;
             case 'w':
                 w = strtoull(optarg, NULL, 10);
+                break;
+            case 'u':
+                max_unsynchronized = strtoull(optarg, NULL, 10);
                 break;
             case 't':
                 is_tau = true;
@@ -434,6 +438,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
     //std::cerr << "b = " << b << "\n";
     dbsize_t num_blocks = n / b;
     dbsize_t words_per_block = b / w;
+    
     //std::cerr << "Number of blocks: " << num_blocks << std::endl;
     //std::cerr << "Words per block:  " << words_per_block << std::endl;
     //std::cerr << "Bits per block:  " << b << std::endl;
@@ -531,7 +536,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
 
     // Create the PercyServerParams object.
     PercyServerParams * params = new PercyServerParams(
-	    words_per_block, num_blocks, is_tau, modulus, mode, 
+	    words_per_block, num_blocks, max_unsynchronized, is_tau, modulus, mode, 
 	    be_byzantine, pcparams_file, do_spir, sid,
 	    num_threads, ttype, tmethod);
 

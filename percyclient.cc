@@ -72,6 +72,12 @@ PercyClient * PercyClient::make_client (PercyClientParams &params,
     case MODE_GF216:
 	retptr = new PercyClient_GF2E<GF216_Element>(params, num_servers, t, sids);
 	break;
+    case MODE_RS_SYNC:
+	retptr = new PercyClient_RS_Sync<GF216_Element>(params, num_servers, t, sids);
+    break;
+    // case MODE_PULSE_SYNC:
+	// retptr = new PercyClient_PULSE_Sync<GF216_Element>(params, num_servers, t, sids);
+    // break;
     default:
 	break;
     }

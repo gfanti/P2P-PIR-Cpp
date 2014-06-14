@@ -23,22 +23,23 @@ function usage {
     echo "Usage: $EXE ell t [OPTIONS]"
     echo
     echo "Options:"
-    echo "    -m METHOD       The method to use.  (Default: w32)"
-    echo "    -z NUM_BYZ      The number of byzantine servers.  (Default: 0)"
-    echo "    -q NUM_QUERIES  The number of random blocks to query for."
-    echo "                    (Default: 1)"
-    echo "    -B BLOCKS       Specify the blocks to query using a space-delimited string"
-    echo "    -d DATABASE     The database file to use (Default: database)"
-    echo "    -t TAU          Tau-independence value of database shares (Default: 0)"
-    echo "    -T THREADS      Use threading and specify the number of threads per server"
-    echo "    -P TTYPE        Specify how the database is split when threading"
-    echo "                    (see pirserver usage for available types)"
-    echo "    -Q TMETHOD      Specify the method used when threading"
-    echo "                    (see pirserver usage for available types)"
-    echo "    --verbose       Print extra debugging output."
-    echo "    --gdb           Run pirclient under gdb."
-    echo "    --no-kill       Do not kill the servers after running."
-    echo "    --help          Display this message"
+    echo "    -m METHOD             The method to use.  (Default: w32)"
+    echo "    -z NUM_BYZ            The number of byzantine servers.  (Default: 0)"
+    echo "    -q NUM_QUERIES        The number of random blocks to query for."
+    echo "                          (Default: 1)"
+    echo "    -B BLOCKS             Specify the blocks to query using a space-delimited string"
+    echo "    -d DATABASE           The database file to use (Default: database)"
+    echo "    -t TAU                Tau-independence value of database shares (Default: 0)"
+    echo "    -u MAX_UNSYNCHRONIZED Maximum number of files that can be unsynchronized (Default: 0)"
+    echo "    -T THREADS            Use threading and specify the number of threads per server"
+    echo "    -P TTYPE              Specify how the database is split when threading"
+    echo "                          (see pirserver usage for available types)"
+    echo "    -Q TMETHOD            Specify the method used when threading"
+    echo "                          (see pirserver usage for available types)"
+    echo "    --verbose             Print extra debugging output."
+    echo "    --gdb                 Run pirclient under gdb."
+    echo "    --no-kill             Do not kill the servers after running."
+    echo "    --help                Display this message"
     echo
     echo "Available methods are {w160, w32, w16, w8, smalldb, gf28, gf216, chor, spir}."
     echo
@@ -111,6 +112,7 @@ shift
 DATABASE=database
 METHOD=w32
 NUM_BYZ=0
+MAX_UNSYNCHRONIZED=0
 VERBOSE=FALSE
 NO_KILL=FALSE
 GDB=FALSE
@@ -129,6 +131,9 @@ while [ $# -gt 0 ]; do
             shift 2 ;;
         "-q" )
             NUM_QUERIES=$2
+            shift 2 ;;
+        "-u" )
+            MAX_UNSYNCHRONIZED=$2
             shift 2 ;;
 	"-B" )
 	    BLOCKS=$2
@@ -317,7 +322,7 @@ for (( i = 1; i <= $NUM_SERVERS; i++ )) do
     else
         DBSUFFIX=""
     fi
-    COMMAND="./pirserver $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
+    COMMAND="./pirserver $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
     if [ $VERBOSE == TRUE ]; then
         echo "$COMMAND &"
         $COMMAND &
@@ -354,7 +359,7 @@ fi
 ## Run the client
 
 echo "Starting the client ..."
-COMMAND="./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
+COMMAND="./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
 if [ $VERBOSE == TRUE ]; then
     echo $COMMAND
 fi
@@ -362,7 +367,7 @@ if [ $GDB == TRUE ]; then
     echo $COMMAND ">" $CLIENT_OUTFILE
     gdb ./pirclient
 else
-    ./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+    ./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
     if [ $? -ne 0 ]; then
 	echo "The client did not finish correctly!"
 	killservers

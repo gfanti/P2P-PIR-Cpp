@@ -66,7 +66,7 @@ void print_usage_exit(char *bin)
     std::cerr << "                        ZZ_P        z            use arithmetic in Z mod p" << std::endl;
     std::cerr << "                        CHOR        c            use Chor et al.'s lightweight protocol" << std::endl;
     std::cerr << "                        RS_SYNC     r            use unsynchronized database scheme with Reed-Solomon decoding" << std::endl;
-    std::cerr << "                        PULSE_SYNC  p            use unsynchronized database scheme with PULSE decoding" << std::endl;
+    // std::cerr << "                        PULSE_SYNC  p            use unsynchronized database scheme with PULSE decoding" << std::endl;
     std::cerr << "                        (default: ZZ_P)" << std::endl;
 #ifdef SPIR_SUPPORT
     std::cerr << "   -s, --spir PCPARAMS  do symmetric PIR with specified PolyCommit" << std::endl;
@@ -153,7 +153,7 @@ int main(int argc, char **argv)
     // Enable hybrid security?
     bool do_hybrid = false;
 	
-    // Mode of operation selected (ZZ_p, GF28, GF216 or Chor)
+    // Mode of operation selected (ZZ_p, GF28, GF216, Chor, RS_SYNC, or PULSE_SYNC)
     PercyMode mode = MODE_ZZ_P;
 
     nservers_t tau = 0;
@@ -179,6 +179,9 @@ int main(int argc, char **argv)
                 }
                 else if(!strcmp(optarg, "CHOR") || !strcmp(optarg, "c")) {
                     mode = MODE_CHOR;
+                }
+                else if(!strcmp(optarg, "RS_SYNC") || !strcmp(optarg, "c")) {
+                    mode = MODE_RS_SYNC;
                 }
                 else {
                     std::cerr << "Unknown mode selected. Valid modes are ZZ_P, GF28, GF216 and CHOR." << std::endl;
@@ -240,6 +243,7 @@ int main(int argc, char **argv)
 	
     dbsize_t num_blocks = strtoull(argv[optind++], NULL, 10);
     dbsize_t words_per_block = strtoull(argv[optind++], NULL, 10);
+    dbsize_t max_unsynchronized = strtoull(argv[optind++], NULL, 10);
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
 	
     std::cerr << "w = " << w << std::endl;
@@ -474,11 +478,11 @@ int main(int argc, char **argv)
     PercyClientParams *clientparams = NULL;
     if (do_hybrid)
     {
-	clientparams = new PercyClientParams(words_per_block, num_blocks, tau, p1, p2);
+	clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, tau, p1, p2);
     }
     else
     {
-	clientparams = new PercyClientParams(words_per_block, num_blocks, tau, modulus, mode, pcparams_file, do_spir);
+	clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, pcparams_file, do_spir);
     }
     
     // Set up an iostream to each of the servers.

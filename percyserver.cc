@@ -60,9 +60,9 @@ bool PercyServer::handle_request(PercyServerParams &params, std::istream &is,
     else if (params.get_mode() == MODE_CHOR) {
         return handle_request_Chor(params, is, os);
     }
-    // else if (params.get_mode() == MODE_RS_SYNC) {
-        // return handle_request_RS_Sync(params, is, os);
-    // }
+    else if (params.get_mode() == MODE_RS_SYNC) {
+        return handle_request_RS_Sync(params, is, os);
+    }
     // else if (params.get_mode() == MODE_PULSE_SYNC) {
         // return handle_request_PULSE_Sync(params, is, os);
     // }
@@ -396,6 +396,106 @@ bool PercyServer::handle_request_Chor(PercyServerParams &params, std::istream &i
         // Read some values from the params
         dbsize_t words_per_block = params.words_per_block();
         dbsize_t num_bytes = params.num_blocks() / 8;
+        nqueries_t q;
+
+        // Read the number of queries
+        unsigned char nq[2];
+        is.read((char *)nq, 2);
+        if (is.eof()) {
+            return false;
+        }
+        nqueries_t num_queries = (nq[0] << 8) | nq[1];
+
+        // For each query, read the input vector, which is a sequence of
+        // num_blocks/8 entries, each of length 1 byte
+        unsigned char *inputvector = new unsigned char[num_queries*num_bytes];
+        unsigned char *outputvector = new unsigned char[num_queries*words_per_block];
+        memset(outputvector, '\0', num_queries*words_per_block);
+
+        is.read((char *)inputvector, num_queries*num_bytes);
+        if (is.eof()) {
+	    delete[] inputvector;
+	    delete[] outputvector;
+            return false;
+        }
+
+        /*
+        std::cerr << "Server " << ": ";
+        printBS_debug(inputvector, num_blocks/8);
+        std::cerr << std::endl;
+        */
+
+        const MemoryDataStore* ds = static_cast<MemoryDataStore*>(datastore);
+
+        const unsigned char *data = (const unsigned char*)(ds->get_data());
+
+        // Compute the output vector and send it back to the client
+        struct timeval ts, te;
+        gettimeofday(&ts, NULL);
+        for (q = 0; q < num_queries; q++) {
+            for (unsigned int i = 0; i < num_bytes; i++) {
+                unsigned char query_byte = inputvector[q*num_bytes + i];
+                if (query_byte & 128)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + 8*i*words_per_block, words_per_block);
+                if (query_byte & 64)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+1)*words_per_block, words_per_block);
+                if (query_byte & 32)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+2)*words_per_block, words_per_block);
+                if (query_byte & 16)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+3)*words_per_block, words_per_block);
+                if (query_byte & 8)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+4)*words_per_block, words_per_block);
+                if (query_byte & 4)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+5)*words_per_block, words_per_block);
+                if (query_byte & 2)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+6)*words_per_block, words_per_block);
+                if (query_byte & 1)
+                    XOR_equal(outputvector + q*words_per_block,
+                            data + (8*i+7)*words_per_block, words_per_block);
+            }
+        }
+
+        gettimeofday(&te, NULL);
+        int td = (te.tv_sec - ts.tv_sec)*1000000 + (te.tv_usec - ts.tv_usec);
+        fprintf(stderr, "Chor: %d.%03d msec computation\n", td/1000, td%1000);
+
+        if (byzantine) {
+            for (dbsize_t i=0; i<num_queries*words_per_block; ++i) {
+                outputvector[i]++;
+            }
+        }
+
+        /*
+        std::cerr << "Server: ";
+        printBS_debug(outputvector+(num_queries-1)*words_per_block, words_per_block);
+        std::cerr << std::endl;
+        */
+
+        os.write((char *)outputvector, num_queries*words_per_block);
+        os.flush();
+	delete[] inputvector;
+	delete[] outputvector;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
+        std::ostream &os)
+{
+    if(!is.eof()) {
+        // Read some values from the params
+        dbsize_t words_per_block = params.words_per_block();
+        dbsize_t num_bytes = params.num_blocks() / 8;
+        dbsize_t max_unsynchronized = params.max_unsynchronized();
         nqueries_t q;
 
         // Read the number of queries

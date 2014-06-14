@@ -53,7 +53,9 @@ private:
     	    std::istream &is, std::ostream &os);
     bool handle_request_Chor(PercyServerParams &params, std::istream &is,
 	   std::ostream &os);
-
+    bool handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
+	   std::ostream &os);
+       
     bool byzantine;
     void compute_one(ZZ_p *value, bool hybrid_protection,
 	dbsize_t num_blocks, nqueries_t num_queries,

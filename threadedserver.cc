@@ -70,6 +70,7 @@ dbsize_t comm_bytes_per_word (const PercyServerParams &params)
 	break;
     case MODE_GF28:
     case MODE_GF216:
+    case MODE_RS_SYNC:
     default:
 	// Otherwise, just use the given value
 	return params.bytes_per_word();
@@ -209,7 +210,7 @@ nqueries_t worker_first_query (const PercyServerParams &params, dbsize_t workeri
 PercyServerParams worker_params (const PercyServerParams &params, dbsize_t workerid)
 {
     return PercyServerParams(worker_words_per_block(params, workerid),
-	    worker_num_blocks(params, workerid), params.tau(), params.get_modulus(), 
+	    worker_num_blocks(params, workerid), params.max_unsynchronized(), params.tau(), params.get_modulus(), 
 	    params.get_mode(), params.is_byzantine(), NULL, false, params.get_sid());
 }
 
@@ -772,6 +773,7 @@ bool PercyThreadedServer::handle_request(PercyServerParams &params, std::istream
 
     case MODE_GF28:
     case MODE_GF216:
+    case MODE_RS_SYNC:
     case MODE_CHOR:
 	for (dbsize_t i = 0; i < num_threads; ++i) {
 	    XOR_equal(responses, worker_responses[i], 

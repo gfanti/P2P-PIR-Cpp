@@ -50,6 +50,7 @@ PercyParams::PercyParams()
     this->do_spir = false;
     this->_words_per_block = 1;
     this->_num_blocks = 1;
+    this->_max_unsynchronized = 0;
     this->modulus = 257;
     this->mode = MODE_ZZ_P;
     this->pcparams_filename = NULL;
@@ -59,7 +60,7 @@ PercyParams::PercyParams()
     create_ZZ_pContexts();
 }
 
-PercyParams::PercyParams(dbsize_t words_per_block, dbsize_t num_blocks,
+PercyParams::PercyParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	nservers_t tau, ZZ modulus, PercyMode mode,
 	char *pcparams_file, bool do_spir)
 {
@@ -69,6 +70,7 @@ PercyParams::PercyParams(dbsize_t words_per_block, dbsize_t num_blocks,
     this->do_spir = do_spir;
     this->_words_per_block = words_per_block;
     this->_num_blocks = num_blocks;
+    this->_max_unsynchronized = max_unsynchronized;
     this->modulus = modulus;
     this->mode = mode;
     this->pcparams_filename = pcparams_file;
@@ -103,6 +105,9 @@ ostream& operator<<(ostream& os, const PercyParams &params)
     PERCY_WRITE_LE_DBSIZE(os, params._words_per_block);
     PERCY_WRITE_LE_DBSIZE(os, params._num_blocks);
 
+    // Output the max_unsynchronized value
+    PERCY_WRITE_LE_DBSIZE(os, params._max_unsynchronized);
+    
     // Output the modulus
     percy_write_ZZ(os, params.modulus);
 
@@ -150,6 +155,9 @@ istream& operator>>(istream& is, PercyParams &params)
     PERCY_READ_LE_DBSIZE(is, params._words_per_block);
     PERCY_READ_LE_DBSIZE(is, params._num_blocks);
 
+    // Input the max_unsynchronized value
+    PERCY_READ_LE_DBSIZE(is, params._max_unsynchronized);
+    
     // Input the modulus
     percy_read_ZZ(is, params.modulus);
     params.create_ZZ_pContexts();
@@ -169,19 +177,20 @@ istream& operator>>(istream& is, PercyParams &params)
 }
 
 PercyClientParams::PercyClientParams(dbsize_t words_per_block,
-	dbsize_t num_blocks, nservers_t tau, ZZ p, ZZ q)
+	dbsize_t num_blocks, dbsize_t max_unsynchronized, nservers_t tau, ZZ p, ZZ q)
 {
-    init_hybrid(words_per_block, num_blocks, tau, p, q);
+    init_hybrid(words_per_block, num_blocks, max_unsynchronized, tau, p, q);
 }
 
 void PercyClientParams::init_hybrid(dbsize_t words_per_block,
-	dbsize_t num_blocks, nservers_t tau, ZZ p, ZZ q)
+	dbsize_t num_blocks, dbsize_t max_unsynchronized, nservers_t tau, ZZ p, ZZ q)
 {
     this->version = PERCY_VERSION;
     this->hybrid_protection = true;
     this->_tau = tau;
     this->_words_per_block = words_per_block;
     this->_num_blocks = num_blocks;
+    this->_max_unsynchronized = max_unsynchronized;
     ZZ modulus;
     modulus = p * q;
     this->modulus = modulus;
@@ -219,7 +228,7 @@ void PercyParams::create_ZZ_pContexts()
 }
 
 PercyClientParams::PercyClientParams(dbsize_t words_per_block,
-	dbsize_t num_blocks, nservers_t tau, unsigned long modulus_bits)
+	dbsize_t num_blocks, dbsize_t max_unsynchronized, nservers_t tau, unsigned long modulus_bits)
 {
     // Pick the sizes for the primes
     unsigned long qsize = modulus_bits / 2;
@@ -238,5 +247,5 @@ PercyClientParams::PercyClientParams(dbsize_t words_per_block,
     if (qsize >= 2) SetBit(qbase, qsize-2);
     NextPrime(q, qbase);
 
-    init_hybrid(words_per_block, num_blocks, tau, p, q);
+    init_hybrid(words_per_block, num_blocks, max_unsynchronized, tau, p, q);
 }
