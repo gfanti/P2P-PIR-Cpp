@@ -55,6 +55,7 @@ private:
 	   std::ostream &os);
     bool handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
 	   std::ostream &os);
+    bool handle_hash_request_RS_Sync(PercyServerParams &params, std::ostream &os);
        
     bool byzantine;
     void compute_one(ZZ_p *value, bool hybrid_protection,

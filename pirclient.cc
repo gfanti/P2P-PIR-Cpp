@@ -180,11 +180,11 @@ int main(int argc, char **argv)
                 else if(!strcmp(optarg, "CHOR") || !strcmp(optarg, "c")) {
                     mode = MODE_CHOR;
                 }
-                else if(!strcmp(optarg, "RS_SYNC") || !strcmp(optarg, "c")) {
+                else if(!strcmp(optarg, "RS_SYNC") || !strcmp(optarg, "u")) {
                     mode = MODE_RS_SYNC;
                 }
                 else {
-                    std::cerr << "Unknown mode selected. Valid modes are ZZ_P, GF28, GF216 and CHOR." << std::endl;
+                    std::cerr << "Unknown mode selected. Valid modes are ZZ_P, GF28, GF216, CHOR, and RS_SYNC." << std::endl;
                     exit(1);
                 }
 		break;
@@ -234,6 +234,11 @@ int main(int argc, char **argv)
 	std::cerr << "Error: Chor et al.'s PIR scheme does not support tau independence." << std::endl;
 	exit(1);
     }
+    
+    if (tau && mode == MODE_RS_SYNC) {
+	std::cerr << "Error: The PIR scheme for unsynchronized databases does not support tau independence." << std::endl;
+	exit(1);
+    }
 	
     // Make sure enough mandatory arguments are present.
     if(argc - optind < 8)
@@ -247,6 +252,7 @@ int main(int argc, char **argv)
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
 	
     std::cerr << "w = " << w << std::endl;
+    std::cerr << "max_unsynchronized = " << max_unsynchronized << std::endl;
 	
     // Sanity checks for (n,b,w).
     if (mode == MODE_CHOR) {
@@ -298,6 +304,11 @@ int main(int argc, char **argv)
         std::cerr << "Error: Chor requires that t=k-1." << std::endl;
         exit(1);
     }
+    // TODO: Comment this out once the code is ready (allow arbitrary t)
+    if (mode == MODE_RS_SYNC && t != k-1) {
+        std::cerr << "Error: Asynchronous PIR requires that t=k-1." << std::endl;
+        exit(1);
+    }
 
     // Choose an appropriate modulus.
     ZZ p1, p2;
@@ -335,6 +346,12 @@ int main(int argc, char **argv)
 	words_per_block /= 8;
 	p1 = to_ZZ("1");
 	p2 = to_ZZ("256");
+    }
+    else if (mode == MODE_RS_SYNC)
+    {
+    // TODO: I have no clue if this works--not exactly sure what p1 and p2 do. revisit this
+	p1 = to_ZZ("1");
+	p2 = to_ZZ("65536");
     }
     else if (w == 8 && !do_hybrid)
     {

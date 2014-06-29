@@ -502,7 +502,7 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
         unsigned char nq[2];
         is.read((char *)nq, 2);
         if (is.eof()) {
-            return false;
+            return PercyServer::handle_hash_request_RS_Sync(params, os);
         }
         nqueries_t num_queries = (nq[0] << 8) | nq[1];
 
@@ -586,6 +586,13 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
     } else {
         return false;
     }
+}
+
+bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::ostream &os)
+{
+    // write out the computed hashes (to find which files are unsynchronized) to the output stream
+    // these hashes were previously computed in the initialization
+    return true;
 }
 
 void PercyServer::compute_one(ZZ_p *value, bool hybrid_protection,

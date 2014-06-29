@@ -90,6 +90,7 @@ void print_usage_options () {
     std::cerr << "   -n DBBYTES             use only the first DBBYTES bytes of database (default: entire file)." << std::endl;
     std::cerr << "   -w WORDSIZE            use a word size of WORDSIZE bytes (default: 8)." << std::endl;
     std::cerr << "   -b BLOCKSIZE           use a block size of BLOCKSIZE bytes (default: sqrt(DBBYTES*WORDSIZE)/8)." << std::endl;
+    std::cerr << "   -u MAX_UNSYNCHRONIZED  specifies the maximum number of db files that can be unsynchronized." << std::endl;
     std::cerr << "   -t, -tau               specify that database is tau independent." << std::endl;
     std::cerr << "   -S, --SID SERVERID     use the specified SID." << std::endl;
     std::cerr << "   -p, --port PORTNO      listen for connections on the specified port." << std::endl;
@@ -617,6 +618,7 @@ PercyDistServerParams * init_dist_params (ParsedArgs& pargs)
 	}
 	// connect_to_server function is located in distserver.{h,cc}
 	iosockinet * socket = connect_to_server(addrchar, portnum);
+    std::cerr << "Hi there\n";
 	if (socket == NULL) {
 	    std::cerr << "Error: cannot connect to worker " << i << ".\n";
 	    return NULL;
@@ -815,6 +817,7 @@ struct option longopts[] = {
     {"n",		    required_argument,	NULL, 'n'},
     {"b",		    required_argument,	NULL, 'b'},
     {"w",		    required_argument,	NULL, 'w'},
+    {"u",		    required_argument,	NULL, 'u'},
     {"tau",		    no_argument,	NULL, 't'},
     {"mode",		    required_argument,  NULL, 'm'},
     {"hybrid",		    no_argument,        NULL, 'h'},
@@ -845,6 +848,8 @@ struct option longopts[] = {
 // Normal main
 int main (int argc, char ** argv)
 {
+    std::cerr << "in main\n";
+    
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 
@@ -853,13 +858,13 @@ int main (int argc, char ** argv)
     // Parse arguments
 
 #if defined(DIST_MASTER) & defined(SPIR_SUPPORT)
-    const char * shortopts = "d:n:b:w:tm:hz1S:p:F:G:s:";
+    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:";
 #elif defined(DIST_MASTER)
-    const char * shortopts = "d:n:b:w:tm:hz1S:p:F:G:";
+    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:";
 #elif defined(SPIR_SUPPORT)
-    const char * shortopts = "d:n:b:w:tm:hz1S:p:F:G:s:T:P:Q:";
+    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:T:P:Q:";
 #else
-    const char * shortopts = "d:n:b:w:tm:hz1S:p:F:G:T:P:Q:";
+    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:T:P:Q:";
 #endif
     ParsedArgs pargs;
     if (!parse_long_opts(argc, argv, shortopts, longopts, pargs)) {
@@ -1001,6 +1006,8 @@ int main (int argc, char ** argv)
 // MPI main
 int main(int argc, char **argv)
 {
+
+    std::cerr << "in MPI main\n";
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 
