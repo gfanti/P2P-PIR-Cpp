@@ -207,46 +207,6 @@ private:
     // dbsize_t max_unsynchronized;  //(appears in the params item)
 };
 
-// template<typename GF2E_Element>
-// class PercyClient_PULSE_Sync : public PercyClient {
-// public:
-    // PercyClient_PULSE_Sync (PercyClientParams &params, nservers_t num_servers,
-	    // nservers_t t, sid_t * sids);
-
-    // PercyClient_PULSE_Sync (const PercyClient_RS_Sync &other);
-    // PercyClient_PULSE_Sync& operator= (PercyClient_RS_Sync other);
-
-    // virtual ~PercyClient_PULSE_Sync ();
-
-    // // Virtual members as described in PercyClient class
-    // virtual int send_request(vector<dbsize_t> block_numbers, 
-	    // std::vector<ostream*> &osvec);
-    // virtual nservers_t receive_replies(std::vector<istream*> &isvec);
-    // virtual nqueries_t process_replies(nservers_t h,
-	    // vector<PercyBlockResults> &results);
-
-// private:
-    // virtual void choose_indices(sid_t *sids);
-
-    // // A NTL-less method to attempt a fast recovery
-    // bool try_fast_recover (nservers_t h, vector<PercyBlockResults> &results);
-    // // Some helpers for it
-    // void construct_lagrange_coeffs(GF2E_Element *coeffs, GF2E_Element alpha,
-	    // nservers_t firstpoint, nservers_t numpoints);
-    // inline GF2E_Element interpolate(const GF2E_Element *word_answers, 
-	    // const GF2E_Element *coeffs, nservers_t firstpoint,
-	    // nservers_t numpoints);
-
-    // // Private GF2E members
-    // GF2E_Element * indices;
-    // vec_GF2E indices_ntl;
-    // vector<vector<GF2E_Element> > randmults;
-    // vector<GF2E_Element *> answers;
-    // vector<vector<vec_GF2E> > answers_ntl;
-    // vector<vector<DecoderResult<GF2E> > > unfinished_results;
-    // vector<std::set<dbsize_t> > decoded;
-// };
-
 #include "percyclient_impl.h"
 
 #endif

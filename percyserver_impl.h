@@ -257,12 +257,12 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
     unsigned char nq[2];
     is.read((char *)nq, 2);
     if (is.eof()) {
-	return false;
+        return false;
     }
     nqueries_t num_queries = (nq[0] << 8) | nq[1];
     if (num_queries == 0) {
-	std::cerr << "No more queries\n";
-	return false;
+        std::cerr << "No more queries\n";
+        return false;
     }
 
     // For each query, read the input vector, which is a sequence of
@@ -272,9 +272,9 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
     memset(output, '\0', num_queries*words_per_block*sizeof(GF2E_Element));
     is.read((char *)input, num_queries*num_blocks*sizeof(GF2E_Element));
     if (is.eof()) {
-	delete[] input;
-	delete[] output;
-	return false;
+        delete[] input;
+        delete[] output;
+        return false;
     }
 
     const MemoryDataStore* ds = static_cast<MemoryDataStore*>(datastore);
@@ -303,6 +303,105 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
 		output[q*words_per_block + i]++;
 	    }
 	}
+    }
+
+    // Send the output vector to the client via the ostream
+    os.write((char *)output,
+		num_queries*words_per_block*sizeof(GF2E_Element));
+    os.flush();
+    delete[] input;
+    delete[] output;
+
+    return true;
+}
+
+template <typename GF2E_Element>
+bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
+        std::ostream &os)
+{
+    if(!is.eof()) {
+        // Read some values from the params
+        dbsize_t words_per_block = params.words_per_block();
+        dbsize_t num_bytes = params.num_blocks() / 8;
+        dbsize_t max_unsynchronized = params.max_unsynchronized();
+        nqueries_t q;
+
+        // Read the number of queries
+        unsigned char nq[2];
+        is.read((char *)nq, 2);
+        if (is.eof()) {
+            return false;
+        }
+        nqueries_t num_queries = (nq[0] << 8) | nq[1];
+        if (num_queries == 0) {
+            std::cerr << "No queries were requested! \n";
+            return false;
+        }
+        if (params.get_mode() == MODE_RS_SYNC) {
+            return PercyServer::handle_hash_request_RS_Sync<GF2E_Element>(params, is, os, num_queries);
+        }
+        return false;
+    }
+}
+
+template <typename GF2E_Element>
+bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::istream &is,
+            std::ostream &os, nqueries_t num_queries)
+{
+    // write out the computed hashes (to find which files are unsynchronized) to the output stream
+    // these hashes were previously computed in the initialization
+    
+    if (is.eof()) {
+        return false;
+    }
+
+    // Read some values from the params
+    dbsize_t words_per_block = params.words_per_block();
+    dbsize_t num_blocks = params.num_blocks();
+    dbsize_t max_unsynchronized = params.max_unsynchronized();
+
+    // For each query, read the input vector, which is a sequence of
+    // num_blocks entries, each of length sizeof(GF2E_Element) bytes
+    GF2E_Element *input = new GF2E_Element[num_queries*num_blocks];
+    GF2E_Element *output = new GF2E_Element[num_queries*words_per_block];
+    memset(output, '\0', num_queries*words_per_block*sizeof(GF2E_Element));
+    std::cerr << "About to read....\n";
+    // is.read((char *)input, 3*sizeof(GF2E_Element));
+    // std::cerr << "server input is " << input[0] << std::endl;
+    is.read((char *)input, num_queries*num_blocks*sizeof(GF2E_Element));
+    if (is.eof()) {
+        delete[] input;
+        delete[] output;
+        std::cerr << "ERROR: Not enough content in the input stream!\n";
+        return false;
+    }
+
+    const MemoryDataStore* ds = static_cast<MemoryDataStore*>(datastore);
+    const GF2E_Element *data = (const GF2E_Element*)(ds->get_data());
+
+    // Compute the output vector and send it back to the client
+
+    //struct timeval ts, te;
+    //gettimeofday(&ts, NULL);
+    if (num_queries > 1) {
+        compute_outputvec_multi<GF2E_Element>(data, input, output,
+            num_queries, num_blocks, words_per_block);
+    } else {
+        compute_outputvec_single<GF2E_Element>(data, input, output,
+            num_blocks, words_per_block);
+    }
+
+    //gettimeofday(&te, NULL);
+    //int td = (te.tv_sec - ts.tv_sec)*1000000 + (te.tv_usec - ts.tv_usec);
+    //fprintf(stderr, "%d.%3d msec computation\n", td/1000, td%1000);
+
+    // If the server is Byzantine, give wrong output
+    if (byzantine) {
+        for (nqueries_t q = 0; q < num_queries; q++) {
+            for (dbsize_t i = 0; i < words_per_block; i++) {
+            output[q*words_per_block + i]++;
+            }
+        }
     }
 
     // Send the output vector to the client via the ostream

@@ -120,6 +120,7 @@ NUM_QUERIES=1
 TAUGTZERO=FALSE
 SERVER_FLAGS=""
 CLIENT_FLAGS=""
+MODE="z"
 BLOCKS=""
 while [ $# -gt 0 ]; do
     case $1 in
@@ -196,6 +197,7 @@ case $METHOD in
         NUM_BLOCKS=1024
         WORDS_PER_BLOCK=1024
         WORD_SIZE=16
+        MODE="s"
         SERVER_FLAGS="$SERVER_FLAGS" ;;
     w8 )
         DATABASE_SIZE=1048576
@@ -203,6 +205,7 @@ case $METHOD in
         NUM_BLOCKS=1024
         WORDS_PER_BLOCK=1024
         WORD_SIZE=8
+        MODE="g"
         SERVER_FLAGS="$SERVER_FLAGS" ;;
     smalldb )
         DATABASE_SIZE=256
@@ -251,6 +254,15 @@ case $METHOD in
         WORD_SIZE=16
         SERVER_FLAGS="$SERVER_FLAGS -ms"
         CLIENT_FLAGS="$CLIENT_FLAGS -ms" ;;
+    rs_sync )
+        DATABASE_SIZE=2097152
+        BLOCK_SIZE=2048
+        NUM_BLOCKS=1024
+        WORDS_PER_BLOCK=1024
+        WORD_SIZE=16
+        MODE="r"
+        SERVER_FLAGS="$SERVER_FLAGS"
+        CLIENT_FLAGS="$CLIENT_FLAGS" ;;
     gf216l )
         DATABASE_SIZE=536870912
         BLOCK_SIZE=32768
@@ -265,6 +277,7 @@ case $METHOD in
         NUM_BLOCKS=4096
         WORDS_PER_BLOCK=4096
         WORD_SIZE=1
+        MODE="c"
         SERVER_FLAGS="$SERVER_FLAGS -mc"
         CLIENT_FLAGS="$CLIENT_FLAGS -mc" ;;
     chorl )
@@ -287,7 +300,6 @@ case $METHOD in
         usage
         exit 1 ;;
 esac
-
 
 ## Function to kill all pirserver processes.
 
@@ -322,8 +334,10 @@ for (( i = 1; i <= $NUM_SERVERS; i++ )) do
     else
         DBSUFFIX=""
     fi
-    COMMAND="./pirserver $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
-    echo "$COMMAND &"
+    
+    echo "Mode is $MODE in testclient"
+    COMMAND="./pirserver -m $MODE $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
+
     if [ $VERBOSE == TRUE ]; then
         echo "$COMMAND &"
         $COMMAND &
@@ -360,7 +374,7 @@ fi
 ## Run the client
 
 echo "Starting the client ..."
-COMMAND="./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
+COMMAND="./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
 if [ $VERBOSE == TRUE ]; then
     echo $COMMAND
 fi
@@ -368,7 +382,11 @@ if [ $GDB == TRUE ]; then
     echo $COMMAND ">" $CLIENT_OUTFILE
     gdb ./pirclient
 else
-    ./pirclient$CLIENT_FLAGS $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+    if [ $MAX_UNSYNCHRONIZED == 0 ]; then
+        ./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+    else
+        ./pirclient$CLIENT_FLAGS -m r $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+    fi
     if [ $? -ne 0 ]; then
 	echo "The client did not finish correctly!"
 	killservers

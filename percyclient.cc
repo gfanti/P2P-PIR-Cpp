@@ -59,27 +59,28 @@ PercyClient * PercyClient::make_client (PercyClientParams &params,
 	nservers_t num_servers, nservers_t t, sid_t * sids)
 {
     PercyClient * retptr = NULL;
+    std::cerr << "Mode is " << params.get_mode() << std::endl;
     switch (params.get_mode()) {
-    case MODE_ZZ_P:
-	retptr = new PercyClient_ZZ_p(params, num_servers, t, sids);
-	break;
-    case MODE_CHOR:
-	retptr = new PercyClient_Chor(params, num_servers, t);
-	break;
-    case MODE_GF28:
-	retptr = new PercyClient_GF2E<GF28_Element>(params, num_servers, t, sids);
-	break;
-    case MODE_GF216:
-	retptr = new PercyClient_GF2E<GF216_Element>(params, num_servers, t, sids);
-	break;
-    case MODE_RS_SYNC:
-	retptr = new PercyClient_RS_Sync<GF216_Element>(params, num_servers, t, sids);
-    break;
-    // case MODE_PULSE_SYNC:
-	// retptr = new PercyClient_PULSE_Sync<GF216_Element>(params, num_servers, t, sids);
-    // break;
-    default:
-	break;
+        case MODE_ZZ_P:
+            retptr = new PercyClient_ZZ_p(params, num_servers, t, sids);
+            break;
+        case MODE_CHOR:
+            retptr = new PercyClient_Chor(params, num_servers, t);
+            break;
+        case MODE_GF28:
+            retptr = new PercyClient_GF2E<GF28_Element>(params, num_servers, t, sids);
+            break;
+        case MODE_GF216:
+            retptr = new PercyClient_GF2E<GF216_Element>(params, num_servers, t, sids);
+            break;
+        case MODE_RS_SYNC:
+            retptr = new PercyClient_RS_Sync<GF216_Element>(params, num_servers, t, sids);
+            break;
+        // case MODE_PULSE_SYNC:
+        // retptr = new PercyClient_PULSE_Sync<GF216_Element>(params, num_servers, t, sids);
+        // break;
+        default:
+            break;
     }
     return retptr;
 }
@@ -94,11 +95,14 @@ nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
 	vector<PercyBlockResults> &current_results,
 	vector<PercyBlockResults> &previous_results)
 {
+    std::cerr << "New call of fetch_blocks \n";
     int res = send_request(block_numbers, osvec);
+    std::cerr << "made it back from fetch_blocks \n";
     if (res < 0) {
-	return block_numbers.size();
+        return block_numbers.size();
     }
     nservers_t k = receive_replies(isvec);
+    std::cerr << "Just received replies \n";
     // Calculate what h to use
     nservers_t h = (nservers_t)(floor(sqrt((t+params.tau())*k)))+1;
     const char *envh = getenv("PIRC_H");
@@ -113,17 +117,18 @@ nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
     vector<PercyBlockResults> results;
     dbsize_t pr_res = process_replies(h, results);
     for (nqueries_t q = 0; q < prev_queries; ++q) {
-	previous_results.push_back(results[q]);
+        std::cerr << "looping/pushing back results\n";
+        previous_results.push_back(results[q]);
     }
     for (nqueries_t q = prev_queries; q < num_results; ++q) {
-	previous_results.push_back(results[q]);
+        std::cerr << "looping/pushing back results, 2nd loop\n";
+        previous_results.push_back(results[q]);
     }
     return pr_res;
 }
 
 nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
-	vector<ostream*> &osvec, vector<istream*> &isvec,
-	
+	vector<ostream*> &osvec, vector<istream*> &isvec,   	
 	vector<PercyBlockResults> &current_results)
 {
     vector<PercyBlockResults> dummy_previous;
@@ -238,7 +243,7 @@ int PercyClient_ZZ_p::send_request(vector<dbsize_t> block_numbers,
         std::vector<ostream*> &osvec)
 {
     nqueries_t num_queries = block_numbers.size();
-
+ 
     if (num_servers != osvec.size()) {
         std::cerr << "Incorrect iostream vector size passed to "
             "send_request.\n";
@@ -264,13 +269,13 @@ int PercyClient_ZZ_p::send_request(vector<dbsize_t> block_numbers,
     // Generate random multiples (!= 0)
     nqueries_t previous_queries = requested_blocks.size();
     if (randomize && !params.spir()) {
-	if (params.spir()) {
-	    std::cerr << "Cannot randomize queries with SPIR\n";
-#ifdef SPIR_SUPPORT
-	    delete[] spir_queries;
-#endif
-	    return -1;
-	}
+        if (params.spir()) {
+            std::cerr << "Cannot randomize queries with SPIR\n";
+    #ifdef SPIR_SUPPORT
+            delete[] spir_queries;
+    #endif
+            return -1;
+        }
         for (nqueries_t q = 0; q < num_queries; ++q) {
             randmults.push_back(vector<ZZ_p>());
             vector<ZZ_p>& query_randmults = randmults.back();
@@ -584,6 +589,7 @@ PercyClient_Chor::~PercyClient_Chor ()
 int PercyClient_Chor::send_request(vector<dbsize_t> block_numbers,
         std::vector<ostream*> &osvec)
 {
+    std::cerr << "send_request chor\n";
     nqueries_t num_queries = block_numbers.size();
 
     if (num_servers != osvec.size()) {
@@ -680,7 +686,7 @@ nservers_t PercyClient_Chor::receive_replies(std::vector<istream*> &isvec)
 
     // Moved block numbers from requests_blocks to received_blocks
     for (nqueries_t q = 0; q < num_queries; ++q) {
-	received_blocks.push_back(requested_blocks[q]);
+        received_blocks.push_back(requested_blocks[q]);
     }
     requested_blocks.clear();
 

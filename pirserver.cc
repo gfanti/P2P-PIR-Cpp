@@ -188,8 +188,8 @@ dbsize_t database_bytes (const char * database) {
     int not_exists = stat(database, &filestatus);
     if (not_exists)
     {
-	std::cerr << "Error: cannot find database file " << database << std::endl;
-	return 0;
+        std::cerr << "Error: cannot find database file " << database << std::endl;
+        return 0;
     }
     return filestatus.st_size;
 }
@@ -260,6 +260,10 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
                 else if(!strcmp(optarg, "CHOR") || !strcmp(optarg, "c")) {
                     mode = MODE_CHOR;
                 }
+                else if(!strcmp(optarg, "RS_SYNC") || !strcmp(optarg, "r")) {
+                    mode = MODE_RS_SYNC;
+                    std::cerr << "chose rs_sync mode!\n";
+                }
                 else {
                     std::cerr << "Unknown mode selected. Valid modes are ZZ_P, GF28, GF216 and CHOR.\n\n";
 		    print_usage(pargs.exec);
@@ -319,76 +323,76 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
 		}
 		break;
             default:
-		// Invalid options are handled in argument parsing (no error or
-		// exit here)
-                break;
+            // Invalid options are handled in argument parsing (no error or
+            // exit here)
+            break;
         }
     }
 
     // Change threading method from pthread to fork if in ZZ_P
     if (num_threads > 0 && mode == MODE_ZZ_P && tmethod == THREAD_METHOD_PTHREAD) {
-	fprintf(stderr, "The pthread library is not compatible with ZZ_p.  Using the fork method instead.\n");
-	tmethod = THREAD_METHOD_FORK;
+        fprintf(stderr, "The pthread library is not compatible with ZZ_p.  Using the fork method instead.\n");
+        tmethod = THREAD_METHOD_FORK;
     }
     
     // TODO: Check compatible with DIST_SERVER
     if (do_hybrid && (mode != MODE_ZZ_P)) {
         fprintf(stderr, "Error: hybrid security can only be used with the integers mod p mode of operation.\n");
-	return NULL;
+        return NULL;
     }
 #ifdef SPIR_SUPPORT
     if (do_hybrid && do_spir) {
         fprintf(stderr, "Error: cannot use hybrid security with symmetric PIR.\n");
-	return NULL;
+        return NULL;
     }
     if (do_spir && mode != MODE_ZZ_P) {
         fprintf(stderr, "Error: symmetric PIR can only be used with the integers mod p mode of operation.\n");
-	return NULL;
+        return NULL;
     }
 #endif
     if (is_tau && mode == MODE_CHOR) {
         fprintf(stderr, "Error: Chor et al.'s PIR scheme does not support tau independence.\n");
-	return NULL;
+        return NULL;
     }
 
     // Make sure enough mandatory arguments are present.
     if (pargs.nonoptc < 1) {
-	fprintf(stderr, "Not enough arguments\n");
+        fprintf(stderr, "Not enough arguments\n");
         print_usage(pargs.exec);
-	return NULL;
+        return NULL;
     }
 
     if (checkdb) {
-	// Make sure the specified database file exists.
-	const char *database = pargs.nonoptv[0];
-	dbsize_t dbsize = database_bytes(database);
-	if (dbsize == 0) {
-	    fprintf(stderr, "Error: the database must exist and be non-empty.\n");
-	    return NULL;
-	}
+        // Make sure the specified database file exists.
+        const char *database = pargs.nonoptv[0];
+        dbsize_t dbsize = database_bytes(database);
+        if (dbsize == 0) {
+            fprintf(stderr, "Error: the database must exist and be non-empty.\n");
+            return NULL;
+        }
 
-	// If no value for "n" is specified, then use a default database
-	// size of dbsize. Otherwise, just check that 0<n<=dbsize.
-	if (!n_bytes) {
-	    n_bytes = dbsize;
-	} else if (n_bytes > dbsize) {
-	    fprintf(stderr, "Error: n cannot be larger than database file.\n");
-	    return NULL;
-	}
+        // If no value for "n" is specified, then use a default database
+        // size of dbsize. Otherwise, just check that 0<n<=dbsize.
+        if (!n_bytes) {
+            n_bytes = dbsize;
+        } else if (n_bytes > dbsize) {
+            fprintf(stderr, "Error: n cannot be larger than database file.\n");
+            return NULL;
+        }
 
     } else {
-	// If not checking database, database size must be specified
-	if (!n_bytes) {
-	    fprintf(stderr, "Error: Database size (n) must be specified.\n");
-	    return NULL;
-	}
+        // If not checking database, database size must be specified
+        if (!n_bytes) {
+            fprintf(stderr, "Error: Database size (n) must be specified.\n");
+            return NULL;
+        }
     }
 
     dbbits_t n = n_bytes * 8;
     if (n_bytes > n)
     {
         fprintf(stderr, "Error: database file is too large for the current architecture!\n");
-	return NULL;
+        return NULL;
     }
 
     // If no value for "w" is specified, then use a default word size
@@ -684,34 +688,34 @@ static void handle_requests(PercyServer * server, std::istream &is, std::ostream
 
     // First, read the client's query parameters.
     PercyParams clientparams;
-//                std::cerr << "Receiving query parameters from client...";
+    //                std::cerr << "Receiving query parameters from client...";
     is >> clientparams;
-//                std::cerr << "done" << std::endl;
+    //                std::cerr << "done" << std::endl;
     // check if the two sets of params are compatible...
     failure = !serverparams.is_compatible(clientparams);
     if (failure) {
-	std::cerr << "Client is not compatible with server\n";
+        std::cerr << "Client is not compatible with server\n";
     }
     
     // Now do the SID, but only if it's needed
     if (clientparams.spir() || clientparams.tau())
     {
-	nservers_t client_sid;
-//                    std::cerr << "Receiving SID from client...";
-	unsigned char sidc;
-	is.read((char*)&sidc, 1);
-	client_sid = (nservers_t) sidc;
-//                    std::cerr << "done" << std::endl;
-	if (client_sid != sid)
-	{
-	    std::cerr << "Received incorrect SID from client. (Expected " << sid << " but saw " << client_sid << ".)" << std::endl;
-	    failure &= 2;
-	}
+        nservers_t client_sid;
+        //                    std::cerr << "Receiving SID from client...";
+        unsigned char sidc;
+        is.read((char*)&sidc, 1);
+        client_sid = (nservers_t) sidc;
+        //                    std::cerr << "done" << std::endl;
+        if (client_sid != sid)
+        {
+            std::cerr << "Received incorrect SID from client. (Expected " << sid << " but saw " << client_sid << ".)" << std::endl;
+            failure &= 2;
+        }
     }
-                std::cerr << "Sending response to client...";
+    std::cerr << "Sending response to client...";
     os.write((char*)&failure, 1);
     os.flush();
-                std::cerr << "done" << std::endl;
+    std::cerr << "done" << std::endl;
 
     // Finally, do the PIR query!
     // With probability $PIRS_FAIL/100, fail completely
@@ -727,13 +731,13 @@ static void handle_requests(PercyServer * server, std::istream &is, std::ostream
 
     if (rndval < failat)
     {
-	std::cerr << "["<<sid<<"] Failing.\n";
-	return;
+        std::cerr << "["<<sid<<"] Failing.\n";
+        return;
     }
     if (serverparams.is_byzantine() || rndval < failat + byzat || sid <= byznum)
     {
-	std::cerr << "["<<sid<<"] Going Byzantine.\n";
-	server->be_byzantine();
+        std::cerr << "["<<sid<<"] Going Byzantine.\n";
+        server->be_byzantine();
     }
 
     // Handle the request(s)
@@ -857,42 +861,42 @@ int main (int argc, char ** argv)
 
     // Parse arguments
 
-#if defined(DIST_MASTER) & defined(SPIR_SUPPORT)
-    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:";
-#elif defined(DIST_MASTER)
-    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:";
-#elif defined(SPIR_SUPPORT)
-    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:T:P:Q:";
-#else
-    const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:T:P:Q:";
-#endif
+    #if defined(DIST_MASTER) & defined(SPIR_SUPPORT)
+        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:";
+    #elif defined(DIST_MASTER)
+        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:";
+    #elif defined(SPIR_SUPPORT)
+        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:T:P:Q:";
+    #else
+        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:T:P:Q:";
+    #endif
     ParsedArgs pargs;
     if (!parse_long_opts(argc, argv, shortopts, longopts, pargs)) {
-	print_usage(argv[0]);
-	return -1;
+        print_usage(argv[0]);
+        return -1;
     }
 
     // Check for help or version flags
     optmap::iterator oiter = pargs.opts.find('a');
     if (oiter != pargs.opts.end()) {
-	print_usage(pargs.exec);
-	return 0;
+        print_usage(pargs.exec);
+        return 0;
     }
     oiter = pargs.opts.find('v');
     if (oiter != pargs.opts.end()) {
-	std::cerr << "Percy++ pirserver version " << VERSION << std::endl;
-	std::cerr << AUTHOR << std::endl;
-	return 0;
+        std::cerr << "Percy++ pirserver version " << VERSION << std::endl;
+        std::cerr << AUTHOR << std::endl;
+        return 0;
     }
 
     // Initialize the parameters
-#ifdef DIST_MASTER
-    PercyDistServerParams * params = init_dist_params(pargs);
-#else
-    PercyServerParams * params = init_params(pargs);
-#endif
+    #ifdef DIST_MASTER
+        PercyDistServerParams * params = init_dist_params(pargs);
+    #else
+        PercyServerParams * params = init_params(pargs);
+    #endif
     if (params == NULL) {
-	return -1;
+        return -1;
     }
 
     // Create datastore
@@ -900,9 +904,9 @@ int main (int argc, char ** argv)
 #ifndef DIST_MASTER
     datastore = init_datastore(*params, pargs.nonoptv[0]);
     if (datastore == NULL) {
-	delete params;
-	fprintf(stderr, "DataStore was not initialized.\n");
-	return -1;
+        delete params;
+        fprintf(stderr, "DataStore was not initialized.\n");
+        return -1;
     }
 #endif
 
@@ -910,92 +914,92 @@ int main (int argc, char ** argv)
     uint16_t port = 0;
     oiter = pargs.opts.find('p');
     if (oiter != pargs.opts.end()) {
-	port = strtoul(oiter->second, NULL, 10);
+        port = strtoul(oiter->second, NULL, 10);
     }
 
     // Create a socket for clients to connect to.
     sockinetbuf sin(sockbuf::sock_stream);
     if (!bind_to_port(sin, port)) {
-	delete params;
-	if (datastore != NULL) {
-	    delete datastore;
-	}
-	fprintf(stderr, "Did not successfully bind to a port\n");
-	return -1;
+        delete params;
+        if (datastore != NULL) {
+            delete datastore;
+        }
+        fprintf(stderr, "Did not successfully bind to port %d.\n", port);
+        return -1;
     }
 
     // Create the server
     PercyServer * server = NULL;
-#ifdef DIST_MASTER
-    server = new PercyMasterServer();
-#else
-    if (params->get_num_threads() > 0) {
-	server = new PercyThreadedServer(static_cast<ThreadedDataStore*>(datastore));
-    } else {
-	// Create the PIR server
-	server = new PercyServer(datastore);
-    }
-#endif
+    #ifdef DIST_MASTER
+        server = new PercyMasterServer();
+    #else
+        if (params->get_num_threads() > 0) {
+            server = new PercyThreadedServer(static_cast<ThreadedDataStore*>(datastore));
+        } else {
+            // Create the PIR server
+            server = new PercyServer(datastore);
+        }
+    #endif
     if (server == NULL) {
-	delete params;
-	if (datastore != NULL) {
-	    delete datastore;
-	}
-	fprintf(stderr, "Server not created successfully\n");
-	return -1;
+        delete params;
+        if (datastore != NULL) {
+            delete datastore;
+        }
+        fprintf(stderr, "Server not created successfully\n");
+        return -1;
     }
 
     // Get daemon_mode
     bool daemon_mode = true;
     oiter = pargs.opts.find('1');
     if (oiter != pargs.opts.end()) {
-	daemon_mode = false;
+        daemon_mode = false;
     }
 
     // Get redirection options
     // TODO:
 
     if (daemon_mode) {
-	// Daemon mode
-	while(true) {
-	    iosockinet sio(sin.accept());
+        // Daemon mode
+        while(true) {
+            iosockinet sio(sin.accept());
 
-	    pid_t childpid = fork();
-	    if (childpid) {
-		waitpid(childpid, NULL, 0);
-	    } else {
-		// spawn a grandchild and commit suicide so that the
-		// parent doesn't have to wait()
-		pid_t grandchildpid = fork();
-		if (grandchildpid) {
-		    break; // Will exit loop, clean up and exit
-		} else {
-		    // Handle request
-		    handle_requests(server, sio, sio, *params);
-		    break; // Will exit loop, clean up and exit
-		}
-	    }
-	}
+            pid_t childpid = fork();
+            if (childpid) {
+                waitpid(childpid, NULL, 0);
+            } else {
+                // spawn a grandchild and commit suicide so that the
+                // parent doesn't have to wait()
+                pid_t grandchildpid = fork();
+                if (grandchildpid) {
+                    break; // Will exit loop, clean up and exit
+                } else {
+                    // Handle request
+                    handle_requests(server, sio, sio, *params);
+                    break; // Will exit loop, clean up and exit
+                }
+            }
+        }
     } else {
-	// One connection
-/*
-	std::ifstream ifs("test.in");
-	std::ofstream ofs("test.out");
-	std::istream is(ifs.rdbuf());
-	std::ostream os(ofs.rdbuf());
-	handle_requests(is, os, serverparams, datastore, be_byzantine);
-*/
-	// Get incoming socket connection.
-	iosockinet sio(sin.accept());
+        // One connection
+        /*
+        std::ifstream ifs("test.in");
+        std::ofstream ofs("test.out");
+        std::istream is(ifs.rdbuf());
+        std::ostream os(ofs.rdbuf());
+        handle_requests(is, os, serverparams, datastore, be_byzantine);
+        */
+        // Get incoming socket connection.
+        iosockinet sio(sin.accept());
 
-	// Handle request
-	handle_requests(server, sio, sio, *params);
+        // Handle request
+        handle_requests(server, sio, sio, *params);
     }
 
     // Clean up
     delete params;
     if (datastore != NULL) {
-	delete datastore;
+        delete datastore;
     }
     delete server;
 

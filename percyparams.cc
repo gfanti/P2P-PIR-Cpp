@@ -113,7 +113,7 @@ ostream& operator<<(ostream& os, const PercyParams &params)
 
     // Output g, if appropriate
     if (params.hybrid_protection) {
-	percy_write_ZZ(os, rep(params.g));
+        percy_write_ZZ(os, rep(params.g));
     }
 
     return os;

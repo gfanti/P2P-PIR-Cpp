@@ -54,57 +54,57 @@ public:
 	    char *pcparams_file = NULL, bool do_spir = false);
 
     unsigned long modulus_bytes() const {
-	return NumBytes(modulus);
+        return NumBytes(modulus);
     }
     unsigned long modulussq_bytes() const {
-	return NumBytes(modulus*modulus);
+        return NumBytes(modulus*modulus);
     }
     dbsize_t bytes_per_word() const {
-	unsigned long r = NumBytes(modulus);
-	if (r > 1) return r - 1;
-	return 1;
+        unsigned long r = NumBytes(modulus);
+        if (r > 1) return r - 1;
+        return 1;
     }
     dbsize_t words_per_block() const {
-	return _words_per_block;
+        return _words_per_block;
     }
     dbsize_t num_blocks() const {
-	return _num_blocks;
+        return _num_blocks;
     }
     dbsize_t max_unsynchronized() const {
-	return _max_unsynchronized;
+        return _max_unsynchronized;
     }
     dbsize_t bytes_per_block() const {
-	return bytes_per_word() * _words_per_block;
+        return bytes_per_word() * _words_per_block;
     }
     nservers_t tau() const {
-	return _tau;
+        return _tau;
     }
     void mod_modulus() const {
-	modctx.restore();
+        modctx.restore();
     }
     void mod_modulussq() const {
-	modsqctx.restore();
+        modsqctx.restore();
     }
     const ZZ &get_modulus() const {
-	return modulus;
+        return modulus;
     }
     const ZZ_p &get_g() const {
-	return g;
+        return g;
     }
     bool hybrid() const {
-	return hybrid_protection;
+        return hybrid_protection;
     }
 	bool spir() const {
-	return do_spir;
+        return do_spir;
 	}
     bool modulus_match(ZZ testmod) const {
-	return modulus == testmod;
+        return modulus == testmod;
     }
     PercyMode get_mode() const {
         return mode;
     }
     char * get_pcparams_filename() const {
-	return pcparams_filename;
+        return pcparams_filename;
     }	
 #ifdef SPIR_SUPPORT
     PolyCommitParams * get_pcparamsp() const {
@@ -146,7 +146,9 @@ public:
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ modulus, PercyMode mode, char *pcparams_file=NULL, bool do_spir=false)
         : PercyParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, 
-		pcparams_file, do_spir) {}
+		pcparams_file, do_spir) {
+            std::cerr << "Mode is " << this->get_mode() << std::endl;
+        }
 
     // Generate a new public/private key pair of the given keysize
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
@@ -202,21 +204,23 @@ public:
 
     bool is_compatible(PercyParams& other)
     {
-	bool result = (this->get_mode() == other.get_mode())
-		&& (this->words_per_block() == other.words_per_block())
-		&& (this->num_blocks() == other.num_blocks())
-        && (this->max_unsynchronized() == other.max_unsynchronized())
-		&& (this->bytes_per_word() == other.bytes_per_word())
-		&& (this->tau() == other.tau())
-		&& (this->spir() == other.spir())
-		&& (this->hybrid() == other.hybrid());
+        bool result = (this->get_mode() == other.get_mode())
+            && (this->words_per_block() == other.words_per_block())
+            && (this->num_blocks() == other.num_blocks())
+            && (this->max_unsynchronized() == other.max_unsynchronized())
+            && (this->bytes_per_word() == other.bytes_per_word())
+            && (this->tau() == other.tau())
+            && (this->spir() == other.spir())
+            && (this->hybrid() == other.hybrid());
 
-	if (result && this->hybrid())
-	{
-	    result &= this->modulus_match(other.get_modulus())
-		    && this->get_g() == other.get_g();
-	}
-
+        std::cerr << "mode: " << (this->get_mode() == other.get_mode()) << " " << this->get_mode() << " " << other.get_mode() << std::endl;
+        std::cerr << "result: " << result << std::endl;
+            
+        if (result && this->hybrid())
+        {
+            result &= this->modulus_match(other.get_modulus())
+                && this->get_g() == other.get_g();
+        }
         return result;
     }
     nservers_t get_sid() const {
