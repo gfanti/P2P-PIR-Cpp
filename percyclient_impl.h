@@ -125,8 +125,7 @@ PercyClient_GF2E<GF2E_Element>::~PercyClient_GF2E ()
 // Generate t-private (t+1)-of-l shares of a given secret value.
 template <typename GF2E_Element>
 static void genshares_GF2E(nservers_t t, nservers_t l,
-    const GF2E_Element *indices, GF2E_Element *values, GF2E_Element secret)
-{
+    const GF2E_Element *indices, GF2E_Element *values, GF2E_Element secret) {
     // Pick a random polynomial of degree t with the right constant term
     GF2E_Element * coeffs = new GF2E_Element[t+1];
     coeffs[0] = secret;
@@ -141,7 +140,35 @@ static void genshares_GF2E(nservers_t t, nservers_t l,
     delete[] coeffs;
 }
 
-/* This method seems to choose which indices X we want to evaluate the polynomials at. 
+// Generate t-private (t+1)-of-l shares of a given secret value.
+template <typename GF2E_Element>
+static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *values, 
+    dbsize_t num_blocks, const std::vector<dbsize_t> &sync_error_locs) {
+    
+    for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
+        bool zeroed = true;
+        sync_idx = *it;
+        for (nservers_t j = 0; j < num_servers; j++) {
+            // check if the appropriate values of values is nonzero
+            if (values[(num_blocks + sync_idx) * num_servers + j] != 0) {
+                zeroed = false;
+                break;
+            }
+        }
+        // if the unsynchronized file will be touched by a server, swap its bits with zeros elsewhere
+        if (!zeroed) {
+            // find zeros elsewhere in the vector
+            dbsize_t swap_idx = sync_idx;
+            // how do you check for equality ?
+            while (swap_idx == sync_idx) {
+                // pick a random new index
+            }
+        }
+    }
+    
+}
+
+/* GF:This method seems to choose which indices X we want to evaluate the polynomials at. 
    I.e. if the query is a random polynomial q(X), we need to evaluate it at some random X. */
 template <typename GF2E_Element>
 void PercyClient_GF2E<GF2E_Element>::choose_indices(sid_t *sids) {
@@ -620,6 +647,8 @@ int PercyClient_RS_Sync<GF2E_Element>::send_request(vector<dbsize_t> block_numbe
                     shares + (q * num_blocks + i) * this->num_servers, i == block_numbers[q]);
         }
     }
+    
+    swap_symbols<GF2E_Element>(this->t, this->num_servers, shares, num_blocks, this->sync_error_locs);
 
     // Multiply shares by random multiples
     if (this->randomize) {

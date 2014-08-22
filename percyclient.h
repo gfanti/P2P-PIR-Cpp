@@ -47,10 +47,20 @@ public:
     virtual int send_request(vector<dbsize_t> block_numbers, 
 	    std::vector<ostream*> &osvec) = 0;
 
+    // Send a request for the synchronization info to the
+    // servers connected with the ostreams in the given vector.
+    virtual int send_sync_request(std::vector<ostream*> &osvec)
+    { return 0; }
+        
     // Receive the servers' replies for all requests.  Return k, the number of
     // servers that returned anything.
     virtual nservers_t receive_replies(std::vector<istream*> &isvec) = 0;
 
+    // Receive the servers' replies for all requests.  Return k, the number of
+    // servers that returned anything.
+    virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec)
+    { return 0; }
+    
     // Process the server's replies and pass the results to results.  The
     // number of queries that did not successfully decode is returned.
     virtual nqueries_t process_replies(nservers_t h, 
@@ -195,8 +205,8 @@ public:
     // Virtual members as described in PercyClient class
     virtual int send_request(vector<dbsize_t> block_numbers, 
 	    std::vector<ostream*> &osvec);
-    virtual int send_sync_request(std::vector<ostream*> &osvec);
     virtual int send_hash_request(std::vector<ostream*> &osvec);
+    virtual int send_sync_request(std::vector<ostream*> &osvec);
     virtual nservers_t receive_replies(std::vector<istream*> &isvec);
     virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec);
     // virtual nqueries_t process_sync_replies(nservers_t h,

@@ -94,16 +94,16 @@ nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
 	vector<PercyBlockResults> &current_results,
 	vector<PercyBlockResults> &previous_results)
 {
-    // // retrieve the indices of the unsynchronized databases
-    // if ( this->params.get_mode() == MODE_RS_SYNC ) {
-        // std::cerr << "Retrieving the unsynchronized file locations...\n";
-        // int synchronization = send_sync_request(osvec);
-        // if (synchronization < 0) {
-            // std::cerr << "Failed to send the synchronization errors.\n";
-            // return block_numbers.size();
-        // }
-        // nservers_t  = receive_sync_replies(isvec);
-    // }
+    // retrieve the indices of the unsynchronized databases
+    if ( this->params.get_mode() == MODE_RS_SYNC ) {
+        std::cerr << "Retrieving the unsynchronized file locations...\n";
+        int synchronization = send_sync_request(osvec);
+        if (synchronization < 0) {
+            std::cerr << "Failed to send the synchronization errors.\n";
+            return block_numbers.size();
+        }
+        nservers_t replies = receive_sync_replies(isvec);
+    }
     
     std::cerr << "Retrieving the desired blocks...\n";
     int res = send_request(block_numbers, osvec);
