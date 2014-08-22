@@ -712,11 +712,9 @@ static void handle_requests(PercyServer * server, std::istream &is, std::ostream
             failure &= 2;
         }
     }
-    std::cerr << "Sending response to client...";
     os.write((char*)&failure, 1);
     os.flush();
-    std::cerr << "done" << std::endl;
-
+    
     // Finally, do the PIR query!
     // With probability $PIRS_FAIL/100, fail completely
     // With probability $PIRS_BYZ/100, be Byzantine
@@ -746,13 +744,11 @@ static void handle_requests(PercyServer * server, std::istream &is, std::ostream
     struct timeval ts, te;
     gettimeofday(&ts, NULL);
     while (server->handle_request(serverparams, is, os)) {
-	std::cerr << "Finished a request\n";
 	gettimeofday(&te, NULL);
 	int td = (te.tv_sec - ts.tv_sec)*1000000 + (te.tv_usec - ts.tv_usec);
 	fprintf(stderr, "%d.%03d msec computation + communication\n", td/1000, td%1000);
 	gettimeofday(&ts, NULL);
     }
-    std::cerr << "Finished a request\n";
     std::cerr << "Query completed." << std::endl;
 }
 
@@ -852,7 +848,6 @@ struct option longopts[] = {
 // Normal main
 int main (int argc, char ** argv)
 {
-    std::cerr << "in main\n";
     
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);

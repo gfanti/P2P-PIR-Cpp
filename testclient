@@ -335,7 +335,6 @@ for (( i = 1; i <= $NUM_SERVERS; i++ )) do
         DBSUFFIX=""
     fi
     
-    echo "Mode is $MODE in testclient"
     COMMAND="./pirserver -m $MODE $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
 
     if [ $VERBOSE == TRUE ]; then

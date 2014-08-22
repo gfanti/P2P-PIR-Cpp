@@ -46,7 +46,6 @@ bool PercyServer::handle_request(PercyServerParams &params, std::istream &is,
         std::cerr << "No datastore!\n";
         return false;
     }
-    std::cerr << "Receiving request..." << std::endl;
     if (params.get_mode() == MODE_GF28) {
         //return handle_request_GF28(params, is, os);
         std::cerr << "mode is gf2^8\n";

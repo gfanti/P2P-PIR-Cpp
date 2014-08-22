@@ -81,7 +81,7 @@ protected:
     PercyClientParams params;
     nservers_t num_servers, t;
     vector<nservers_t> goodservers;
-    static const bool randomize = true;
+    static const bool randomize = false;
     vector<dbsize_t> requested_blocks;
     vector<dbsize_t> received_blocks;
 };
@@ -195,10 +195,17 @@ public:
     // Virtual members as described in PercyClient class
     virtual int send_request(vector<dbsize_t> block_numbers, 
 	    std::vector<ostream*> &osvec);
+    virtual int send_sync_request(std::vector<ostream*> &osvec);
     virtual int send_hash_request(std::vector<ostream*> &osvec);
     virtual nservers_t receive_replies(std::vector<istream*> &isvec);
+    virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec);
+    // virtual nqueries_t process_sync_replies(nservers_t h,
+	    // vector<PercyBlockResults> &results);
     virtual nqueries_t process_replies(nservers_t h,
 	    vector<PercyBlockResults> &results);
+
+protected:
+    std::vector<dbsize_t> sync_error_locs;      // the locations of the synchronization errors in the database
 
 private:
     virtual void choose_indices(sid_t *sids);

@@ -251,9 +251,7 @@ int main(int argc, char **argv)
     dbsize_t max_unsynchronized = strtoull(argv[optind++], NULL, 10);
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
 	
-    std::cerr << "w = " << w << std::endl;
-    std::cerr << "max_unsynchronized = " << max_unsynchronized << std::endl;
-	
+    
     // Sanity checks for (n,b,w).
     if (mode == MODE_CHOR) {
         if (w != 1) {
@@ -529,15 +527,6 @@ int main(int argc, char **argv)
         delete[] server_indices;
         exit(1);
     }
-
-    // If the database is mis-synchronized, we need to call the synchronization algorithm on all databases first
-    if (mode == MODE_RS_SYNC) {
-        std::cerr << "First find the mis-synchronized files...\n";
-        // vector<PercyBlockResults> sync_results, sync_current, sync_previous;
-        // get_results
-
-        std::cerr << "Then modify the queries appropriately...\n";
-    }
     
     // Send each server the parameters (and its SID, if necessary).
     for (nservers_t j = 0; j < serverstreams.size(); j++) {
@@ -560,10 +549,8 @@ int main(int argc, char **argv)
         
         std::istream &is = *istreams[j];
         unsigned char failure;
-        //		std::cerr << "Receiving response from server " << onlinesinfos[j].sid << "...";
         is.read((char*)&failure, 1);
-        //		std::cerr << "done" << std::endl;
-
+        
         if (failure & 1) {
             std::cerr << "Error: " << onlinesinfos[j].addr << ":" << onlinesinfos[j].port << " did not accept parameters." <<  std::endl;
         }
@@ -578,7 +565,6 @@ int main(int argc, char **argv)
 
     // Finally, do the PIR query!
     int ret = 0;
-    std::cerr << "Before making the client " << std::endl;
     PercyClient * client = PercyClient::make_client(*clientparams, ell, t, server_indices);
     delete[] server_indices;
     
@@ -589,7 +575,6 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
 
-    std::cerr << "Finding h" << std::endl;
     // Get the value of h (GF: What is h?)
     nservers_t h = (nservers_t)(floor(sqrt((t+clientparams->tau())*k)))+1;
     const char *envh = getenv("PIRC_H");
@@ -602,7 +587,6 @@ int main(int argc, char **argv)
     
     
     
-    std::cerr << "Before pushing percyblockresults to the results vector " << std::endl;
     vector<PercyBlockResults> results, current, previous;
     for (nqueries_t q = 0; q < indices.size(); ++q) {
         results.push_back(PercyBlockResults());

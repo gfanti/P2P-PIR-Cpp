@@ -146,9 +146,7 @@ public:
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
 	    nservers_t tau, ZZ modulus, PercyMode mode, char *pcparams_file=NULL, bool do_spir=false)
         : PercyParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, 
-		pcparams_file, do_spir) {
-            std::cerr << "Mode is " << this->get_mode() << std::endl;
-        }
+		pcparams_file, do_spir) { }
 
     // Generate a new public/private key pair of the given keysize
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
@@ -212,9 +210,6 @@ public:
             && (this->tau() == other.tau())
             && (this->spir() == other.spir())
             && (this->hybrid() == other.hybrid());
-
-        std::cerr << "mode: " << (this->get_mode() == other.get_mode()) << " " << this->get_mode() << " " << other.get_mode() << std::endl;
-        std::cerr << "result: " << result << std::endl;
             
         if (result && this->hybrid())
         {

@@ -365,9 +365,6 @@ bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::is
     GF2E_Element *input = new GF2E_Element[num_queries*num_blocks];
     GF2E_Element *output = new GF2E_Element[num_queries*words_per_block];
     memset(output, '\0', num_queries*words_per_block*sizeof(GF2E_Element));
-    std::cerr << "About to read....\n";
-    // is.read((char *)input, 3*sizeof(GF2E_Element));
-    // std::cerr << "server input is " << input[0] << std::endl;
     is.read((char *)input, num_queries*num_blocks*sizeof(GF2E_Element));
     if (is.eof()) {
         delete[] input;

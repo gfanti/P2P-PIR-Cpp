@@ -59,7 +59,6 @@ PercyClient * PercyClient::make_client (PercyClientParams &params,
 	nservers_t num_servers, nservers_t t, sid_t * sids)
 {
     PercyClient * retptr = NULL;
-    std::cerr << "Mode is " << params.get_mode() << std::endl;
     switch (params.get_mode()) {
         case MODE_ZZ_P:
             retptr = new PercyClient_ZZ_p(params, num_servers, t, sids);
@@ -95,14 +94,23 @@ nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
 	vector<PercyBlockResults> &current_results,
 	vector<PercyBlockResults> &previous_results)
 {
-    std::cerr << "New call of fetch_blocks \n";
+    // // retrieve the indices of the unsynchronized databases
+    // if ( this->params.get_mode() == MODE_RS_SYNC ) {
+        // std::cerr << "Retrieving the unsynchronized file locations...\n";
+        // int synchronization = send_sync_request(osvec);
+        // if (synchronization < 0) {
+            // std::cerr << "Failed to send the synchronization errors.\n";
+            // return block_numbers.size();
+        // }
+        // nservers_t  = receive_sync_replies(isvec);
+    // }
+    
+    std::cerr << "Retrieving the desired blocks...\n";
     int res = send_request(block_numbers, osvec);
-    std::cerr << "made it back from fetch_blocks \n";
     if (res < 0) {
         return block_numbers.size();
     }
     nservers_t k = receive_replies(isvec);
-    std::cerr << "Just received replies \n";
     // Calculate what h to use
     nservers_t h = (nservers_t)(floor(sqrt((t+params.tau())*k)))+1;
     const char *envh = getenv("PIRC_H");
@@ -117,11 +125,9 @@ nqueries_t PercyClient::fetch_blocks(vector<dbsize_t> block_numbers,
     vector<PercyBlockResults> results;
     dbsize_t pr_res = process_replies(h, results);
     for (nqueries_t q = 0; q < prev_queries; ++q) {
-        std::cerr << "looping/pushing back results\n";
         previous_results.push_back(results[q]);
     }
     for (nqueries_t q = prev_queries; q < num_results; ++q) {
-        std::cerr << "looping/pushing back results, 2nd loop\n";
         previous_results.push_back(results[q]);
     }
     return pr_res;

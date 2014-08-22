@@ -111,13 +111,13 @@ template <typename GF2E_Element>
 PercyClient_GF2E<GF2E_Element>::~PercyClient_GF2E ()
 {
     if (indices != NULL) {
-	delete[] indices;
+        delete[] indices;
     }
     while (answers.size() > 0) {
-	if (answers.back() != NULL) {
-	    delete[] answers.back();
-	}
-	answers.pop_back();
+        if (answers.back() != NULL) {
+            delete[] answers.back();
+        }
+        answers.pop_back();
     }
 }
 
@@ -184,7 +184,6 @@ template <typename GF2E_Element>
 int PercyClient_GF2E<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
         std::vector<ostream*> &osvec)
 {
-    std::cerr << "send request GF2E\n";
     nqueries_t num_queries = block_numbers.size();
 
     if (num_servers != osvec.size()) {
@@ -260,98 +259,6 @@ int PercyClient_GF2E<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
 	requested_blocks.push_back(block_numbers[q]);
     }
 
-    delete[] shares;
-
-    return 0;
-}
-
-// Send a request for the given block number (0-based) to the
-// servers connected with the ostreams in the given vector.
-template <typename GF2E_Element>
-int PercyClient_RS_Sync<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
-        std::vector<ostream*> &osvec)
-{
-    std::cerr << "send request rs_sync\n";
-    nqueries_t num_queries = block_numbers.size();
-
-    if (this->num_servers != osvec.size()) {
-        std::cerr << "Incorrect iostream vector size passed to "
-            "send_request_GF2E.\n";
-        std::cerr << "Was " << osvec.size() << ", should be " << this->num_servers
-            << ".\n";
-        return -1;
-    }
-
-    // Construct the vector of server indices
-    nqueries_t q;
-
-    // Generate random multiples (!= 0)
-    nqueries_t previous_queries = this->requested_blocks.size();
-    if (this->randomize) {
-        for (nqueries_t q = 0; q < num_queries; ++q) {
-            this->randmults.push_back(vector<GF2E_Element>());
-            vector<GF2E_Element>& query_randmults = this->randmults.back();
-            for (nservers_t j = 0; j < this->num_servers; ++j) {
-                GF2E_Element r = 0;
-                while (r == 0) {
-                    r = RandomLen_long(8*sizeof(GF2E_Element));
-                }
-                query_randmults.push_back(r);
-            }
-        }
-    }
-
-    
-    std::cerr << "generate shares of the e index vec \n";
-    // Construct the shares of the e_{index} vector
-    dbsize_t num_blocks = this->params.num_blocks();
-    GF2E_Element * shares = new GF2E_Element[num_queries * num_blocks * this->num_servers];
-
-    for (q=0; q<num_queries; ++q) {
-        for (dbsize_t i = 0; i < num_blocks; ++i) {
-            genshares_GF2E<GF2E_Element>(this->t, this->num_servers, this->indices,
-                    shares + (q * num_blocks + i) * this->num_servers, i == block_numbers[q]);
-        }
-    }
-
-    // Multiply shares by random multiples
-    if (this->randomize) {
-        for (nservers_t p = 0; p < this->num_servers; ++p) {
-            for (nqueries_t i = 0; i < num_queries; ++i) {
-                for (dbsize_t j = 0; j < num_blocks; ++j) {
-                    dbsize_t index = (i * num_blocks + j) * this->num_servers + p;
-                    shares[index] = 
-                        multiply_GF2E<GF2E_Element>(shares[index],
-                                this->randmults[i+previous_queries][p]);
-                }
-            }
-        }
-    }
-    
-    // Send the params and query to each server
-    for (nservers_t j = 0; j < this->num_servers; ++j) {
-        unsigned char nq[2];  //this stores the number of queries, and is read by the server
-        int tmp = ((int) ((q >> 8) & 0xff));
-        int tmp2 = ((int) (q) & 0xff);
-        std::cerr << "Part 1: " << tmp << " Part 2: " << tmp2 << std::endl;
-        nq[0] = (q >> 8) & 0xff;
-        nq[1] = (q) & 0xff;
-        osvec[j]->write((char *)nq, 2);    
-        for (q=0; q<num_queries; ++q) {
-            for (dbsize_t i = 0; i < num_blocks; ++i) {
-                dbsize_t index = (q * num_blocks + i) * this->num_servers + j;
-                char *shareptr = (char *)&(shares[index]);
-                osvec[j]->write(shareptr, sizeof(GF2E_Element));
-            }
-        }
-        osvec[j]->flush();
-    }
-    
-    // Add block numbers to requests_blocks
-    for (q = 0; q < num_queries; ++q) {
-        this->requested_blocks.push_back(block_numbers[q]);
-    }
-    
     delete[] shares;
 
     return 0;
@@ -634,21 +541,23 @@ nqueries_t PercyClient_GF2E<GF2E_Element>::process_replies (
 template <typename GF2E_Element>
 PercyClient_RS_Sync<GF2E_Element>::PercyClient_RS_Sync (PercyClientParams &params,
 	nservers_t num_servers, nservers_t t, sid_t * sids) :
-    PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E(params, num_servers, t, sids)
+    PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E(params, num_servers, t, sids),
+    sync_error_locs()
 { }
 
 template <typename GF2E_Element>
 PercyClient_RS_Sync<GF2E_Element>::PercyClient_RS_Sync (
 	const PercyClient_RS_Sync<GF2E_Element> &other) :
-    PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E (&other)
-{ }
+    PercyClient_GF2E<GF2E_Element>::PercyClient_GF2E (&other),
+    sync_error_locs(other.sync_error_locs)
+{}
 
 template <typename GF2E_Element>
 PercyClient_RS_Sync<GF2E_Element>& PercyClient_RS_Sync<GF2E_Element>::operator= (
 	PercyClient_RS_Sync<GF2E_Element> other)
 {
     PercyClient_GF2E<GF2E_Element>::operator=(other);
-    // TODO: Swap any members that are different
+    sync_error_locs = other.sync_error_locs;
     return *this;
 }
 
@@ -664,6 +573,159 @@ void PercyClient_RS_Sync<GF2E_Element>::choose_indices(sid_t *sids) {
     PercyClient_GF2E<GF2E_Element>::choose_indices(sids);
 }
 
+
+// Send a request for the given block number (0-based) to the
+// servers connected with the ostreams in the given vector.
+template <typename GF2E_Element>
+int PercyClient_RS_Sync<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
+        std::vector<ostream*> &osvec)
+{
+    nqueries_t num_queries = block_numbers.size();
+
+    if (this->num_servers != osvec.size()) {
+        std::cerr << "Incorrect iostream vector size passed to "
+            "send_request_GF2E.\n";
+        std::cerr << "Was " << osvec.size() << ", should be " << this->num_servers
+            << ".\n";
+        return -1;
+    }
+
+    // Construct the vector of server indices
+    nqueries_t q;
+
+    // Generate random multiples (!= 0)
+    nqueries_t previous_queries = this->requested_blocks.size();
+    if (this->randomize) {
+        for (nqueries_t q = 0; q < num_queries; ++q) {
+            this->randmults.push_back(vector<GF2E_Element>());
+            vector<GF2E_Element>& query_randmults = this->randmults.back();
+            for (nservers_t j = 0; j < this->num_servers; ++j) {
+                GF2E_Element r = 0;
+                while (r == 0) {
+                    r = RandomLen_long(8*sizeof(GF2E_Element));
+                }
+                query_randmults.push_back(r);
+            }
+        }
+    }
+
+    
+    // Construct the shares of the e_{index} vector
+    dbsize_t num_blocks = this->params.num_blocks();
+    GF2E_Element * shares = new GF2E_Element[num_queries * num_blocks * this->num_servers];
+
+    for (q=0; q<num_queries; ++q) {
+        for (dbsize_t i = 0; i < num_blocks; ++i) {
+            genshares_GF2E<GF2E_Element>(this->t, this->num_servers, this->indices,
+                    shares + (q * num_blocks + i) * this->num_servers, i == block_numbers[q]);
+        }
+    }
+
+    // Multiply shares by random multiples
+    if (this->randomize) {
+        for (nservers_t p = 0; p < this->num_servers; ++p) {
+            for (nqueries_t i = 0; i < num_queries; ++i) {
+                for (dbsize_t j = 0; j < num_blocks; ++j) {
+                    dbsize_t index = (i * num_blocks + j) * this->num_servers + p;
+                    shares[index] = 
+                        multiply_GF2E<GF2E_Element>(shares[index],
+                                this->randmults[i+previous_queries][p]);
+                }
+            }
+        }
+    }
+    
+    // Send the params and query to each server
+    for (nservers_t j = 0; j < this->num_servers; ++j) {
+        unsigned char nq[2];  //this stores the number of queries, and is read by the server
+        nq[0] = (q >> 8) & 0xff;
+        nq[1] = (q) & 0xff;
+        osvec[j]->write((char *)nq, 2);    
+        for (q=0; q<num_queries; ++q) {
+            for (dbsize_t i = 0; i < num_blocks; ++i) {
+                dbsize_t index = (q * num_blocks + i) * this->num_servers + j;
+                char *shareptr = (char *)&(shares[index]);
+                osvec[j]->write(shareptr, sizeof(GF2E_Element));
+            }
+        }
+        osvec[j]->flush();
+    }
+    
+    // Add block numbers to requests_blocks
+    for (q = 0; q < num_queries; ++q) {
+        this->requested_blocks.push_back(block_numbers[q]);
+    }
+    
+    delete[] shares;
+
+    return 0;
+}
+
+// Send a request for the synchronization information to the
+// servers connected with the ostreams in the given vector.
+template <typename GF2E_Element>
+int PercyClient_RS_Sync<GF2E_Element>::send_sync_request(std::vector<ostream*> &osvec)
+{
+    if (this->num_servers != osvec.size()) {
+        std::cerr << "Incorrect iostream vector size passed to "
+            "send_request_GF2E.\n";
+        std::cerr << "Was " << osvec.size() << ", should be " << this->num_servers
+            << ".\n";
+        return -1;
+    }
+
+    // nqueries_t num_queries = 1;
+    // nqueries_t q;
+    // // Generate polynomial of all ones
+    // this->randmults.push_back(vector<GF2E_Element>());
+    // vector<GF2E_Element>& query_randmults = this->randmults.back();
+    // for (nservers_t j = 0; j < this->num_servers; ++j) {
+        // GF2E_Element r = 1;
+        // query_randmults.push_back(r);
+    // }
+
+    
+    // // Construct the shares of the e_{index} vector
+    // dbsize_t num_blocks = this->params.num_blocks();
+    // GF2E_Element * shares = new GF2E_Element[num_queries * num_blocks * this->num_servers];
+
+    // for (q=0; q<num_queries; ++q) {
+        // for (dbsize_t i = 0; i < num_blocks; ++i) {
+            // genshares_GF2E<GF2E_Element>(this->t, this->num_servers, this->indices,
+                    // shares + (q * num_blocks + i) * this->num_servers, i == block_numbers[q]);
+        // }
+    // }
+
+    // // Multiply shares by random multiples
+    // if (this->randomize) {
+        // for (nservers_t p = 0; p < this->num_servers; ++p) {
+            // for (nqueries_t i = 0; i < num_queries; ++i) {
+                // for (dbsize_t j = 0; j < num_blocks; ++j) {
+                    // dbsize_t index = (i * num_blocks + j) * this->num_servers + p;
+                    // shares[index] = 
+                        // multiply_GF2E<GF2E_Element>(shares[index],
+                                // this->randmults[i+previous_queries][p]);
+                // }
+            // }
+        // }
+    // }
+    
+    // // Send the params and query to each server
+    // for (nservers_t j = 0; j < this->num_servers; ++j) {
+        // for (q=0; q<num_queries; ++q) {
+            // for (dbsize_t i = 0; i < num_blocks; ++i) {
+                // dbsize_t index = (q * num_blocks + i) * this->num_servers + j;
+                // char *shareptr = (char *)&(shares[index]);
+                // osvec[j]->write(shareptr, sizeof(GF2E_Element));
+            // }
+        // }
+        // osvec[j]->flush();
+    // }
+    
+    // delete[] shares;
+
+    return 0;
+}
 
 /* Send a request for the pre-computed hashes by a particular server 
  connected with the ostreams in the given vector. */
@@ -688,7 +750,6 @@ int PercyClient_RS_Sync<GF2E_Element>::send_hash_request(std::vector<ostream*> &
         osvec[j]->write((char *)nq, 2);
         osvec[j]->flush();
     }
-
     return 0;
 }
 
@@ -699,7 +760,6 @@ template <typename GF2E_Element>
 nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
 	std::vector<istream*> &isvec)
 {
-    std::cerr << "IN rs sync receive replies\n";
     dbsize_t words_per_block = this->params.words_per_block();
     nqueries_t num_queries = this->requested_blocks.size();
     nqueries_t q;
@@ -713,20 +773,13 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
 	this->answers.push_back(new GF2E_Element[words_per_block * this->num_servers]);
     }
     nqueries_t total_queries = this->answers.size();
-    std::cerr << "Blocks prepared for answers\n";
-
+    
     // Read the replies
     for (nservers_t j = 0; j < this->num_servers; ++j) {
-        std::cerr << "Handling server j=" << j << " out of " << this->num_servers << std::endl;
         bool isgood = true;
         for (q=previous_queries; q<total_queries; ++q) {
-            std::cerr << "Handling query q=" << q << " out of " << total_queries << std::endl;
-            
             for (dbsize_t i = 0; isgood && i < words_per_block; ++i) {
-                std::cerr << "Handling word i=" << i << " out of " << words_per_block << std::endl;
-                // std::cerr << "Size of the istream: " << isvec[j]->rdstate() << " " << ios::goodbit << std::endl;
                 isvec[j]->read((char *)(this->answers[q] + i * this->num_servers + j), sizeof(GF2E_Element));
-                // std::cerr << "Handled word i=" << i << " out of " << words_per_block << std::endl;
                 if (isvec[j]->eof()) {
                     std::cerr << "Server " << j+1 << " did not send complete reply.\n";
                     std::cerr << "Marking server " << j+1 << " as bad.\n";
@@ -745,8 +798,7 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
             this->goodservers.push_back(j);
         }
     }
-    std::cerr << "got replies from all servers\n";
-
+    
     // Add to unfinished_results and decoded
     for (q=0; q<num_queries; ++q) {
 	this->unfinished_results.push_back(
@@ -780,7 +832,17 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
     return this->goodservers.size();
 }
 
+// Receive the server's replies to the sync request, return # of servers that
+// gave complete (but not necessarily correct) replies.
+template <typename GF2E_Element>
+nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
+	std::vector<istream*> &isvec)
+{
+    // The vector of servers that have responded properly
+    nservers_t res = 0;
 
+    return res;
+}
 
 template <typename GF2E_Element>
 nqueries_t PercyClient_RS_Sync<GF2E_Element>::process_replies (
