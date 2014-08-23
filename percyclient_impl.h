@@ -140,14 +140,14 @@ static void genshares_GF2E(nservers_t t, nservers_t l,
     delete[] coeffs;
 }
 
-// Generate t-private (t+1)-of-l shares of a given secret value.
+// Swap the query polynomials of unsynchronized files
 template <typename GF2E_Element>
 static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *values, 
     dbsize_t num_blocks, const std::vector<dbsize_t> &sync_error_locs) {
     
     for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
         bool zeroed = true;
-        sync_idx = *it;
+        dbsize_t sync_idx = *it;
         for (nservers_t j = 0; j < num_servers; j++) {
             // check if the appropriate values of values is nonzero
             if (values[(num_blocks + sync_idx) * num_servers + j] != 0) {
@@ -157,12 +157,35 @@ static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *val
         }
         // if the unsynchronized file will be touched by a server, swap its bits with zeros elsewhere
         if (!zeroed) {
-            // find zeros elsewhere in the vector
-            dbsize_t swap_idx = sync_idx;
-            // how do you check for equality ?
-            while (swap_idx == sync_idx) {
-                // pick a random new index
+            for (nservers_t j = 0; j < num_servers; j++) {
+                // find zeros elsewhere in the vector
+                dbsize_t swap_idx = sync_idx;
+                // how do you check for equality ?
+                while (swap_idx == sync_idx) {
+                    // pick a random new index in the range [0,num_blocks-1]
+                    dbsize_t rand_idx = RandomBits_ulong(8*sizeof(dbsize_t));
+                    // make sure the randomly drawn index is in range and not mis-synchronized
+                    if ((rand_idx >= num_blocks) ||
+                        (std::find(sync_error_locs.begin(), sync_error_locs.end(), rand_idx) == sync_error_locs.end())){
+                        continue;
+                    }
+                    
+                    // otherwise, swap the appropriate entries
+                    swap_idx = rand_idx;
+                    // std::swap(values[(num_blocks + sync_idx) * num_servers + j], values[(num_blocks + swap_idx) * num_servers + j]);
+                    
+                    //For now, we are just zeroing out the offending entries instead of swapping them!
+                    values[(num_blocks + sync_idx) * num_servers + j] = 0;
+                }
             }
+        }
+    }
+    
+    // Sanity check
+    for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
+        dbsize_t sync_idx = *it;
+        for (nservers_t j = 0; j < num_servers; j++) {
+            std::cerr << "Printing mis-synched random values: " << values[(num_blocks + sync_idx) * num_servers + j] << std::endl;
         }
     }
     
