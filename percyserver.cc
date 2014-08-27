@@ -64,7 +64,14 @@ bool PercyServer::handle_request(PercyServerParams &params, std::istream &is,
         return handle_request_Chor(params, is, os);
     }
     else if (params.get_mode() == MODE_RS_SYNC) {
-        return handle_request_RS_Sync<GF216_Element>(params, is, os);
+        // First it should handle the synchronization errors
+        if (!synchronized) {
+            set_synchronized();
+            return handle_sync_request_RS_Sync<GF216_Element>(params, is, os);
+        }
+        else {
+            return handle_request_RS_Sync<GF216_Element>(params, is, os);
+        }
     }
     // else if (params.get_mode() == MODE_PULSE_SYNC) {
         // return handle_request_PULSE_Sync(params, is, os);

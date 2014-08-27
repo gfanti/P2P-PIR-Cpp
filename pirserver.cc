@@ -847,8 +847,7 @@ struct option longopts[] = {
 #ifndef MPI_DIST_SERVER
 // Normal main
 int main (int argc, char ** argv)
-{
-    
+{       
     // Ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
 

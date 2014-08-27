@@ -658,7 +658,6 @@ int PercyClient_RS_Sync<GF2E_Element>::send_request(vector<dbsize_t> block_numbe
             }
         }
     }
-
     
     // Construct the shares of the e_{index} vector
     dbsize_t num_blocks = this->params.num_blocks();
@@ -725,56 +724,15 @@ int PercyClient_RS_Sync<GF2E_Element>::send_sync_request(std::vector<ostream*> &
             << ".\n";
         return -1;
     }
-
-    // nqueries_t num_queries = 1;
-    // nqueries_t q;
-    // // Generate polynomial of all ones
-    // this->randmults.push_back(vector<GF2E_Element>());
-    // vector<GF2E_Element>& query_randmults = this->randmults.back();
-    // for (nservers_t j = 0; j < this->num_servers; ++j) {
-        // GF2E_Element r = 1;
-        // query_randmults.push_back(r);
-    // }
-
     
-    // // Construct the shares of the e_{index} vector
-    // dbsize_t num_blocks = this->params.num_blocks();
-    // GF2E_Element * shares = new GF2E_Element[num_queries * num_blocks * this->num_servers];
-
-    // for (q=0; q<num_queries; ++q) {
-        // for (dbsize_t i = 0; i < num_blocks; ++i) {
-            // genshares_GF2E<GF2E_Element>(this->t, this->num_servers, this->indices,
-                    // shares + (q * num_blocks + i) * this->num_servers, i == block_numbers[q]);
-        // }
-    // }
-
-    // // Multiply shares by random multiples
-    // if (this->randomize) {
-        // for (nservers_t p = 0; p < this->num_servers; ++p) {
-            // for (nqueries_t i = 0; i < num_queries; ++i) {
-                // for (dbsize_t j = 0; j < num_blocks; ++j) {
-                    // dbsize_t index = (i * num_blocks + j) * this->num_servers + p;
-                    // shares[index] = 
-                        // multiply_GF2E<GF2E_Element>(shares[index],
-                                // this->randmults[i+previous_queries][p]);
-                // }
-            // }
-        // }
-    // }
-    
-    // // Send the params and query to each server
-    // for (nservers_t j = 0; j < this->num_servers; ++j) {
-        // for (q=0; q<num_queries; ++q) {
-            // for (dbsize_t i = 0; i < num_blocks; ++i) {
-                // dbsize_t index = (q * num_blocks + i) * this->num_servers + j;
-                // char *shareptr = (char *)&(shares[index]);
-                // osvec[j]->write(shareptr, sizeof(GF2E_Element));
-            // }
-        // }
-        // osvec[j]->flush();
-    // }
-    
-    // delete[] shares;
+     // Send the params and query to each server
+    for (nservers_t j = 0; j < this->num_servers; ++j) {
+        unsigned char x[2];  //this stores the number of queries, and is read by the server
+        x[0] = ((char) (j+1) & 0xff);
+        x[1] = 0x00;
+        osvec[j]->write((char *)x, 2); 
+        osvec[j]->flush();
+    }
 
     return 0;
 }
@@ -822,7 +780,7 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
     // The responses from the servers
     nqueries_t previous_queries = this->received_blocks.size();
     for (q = 0; q < num_queries; ++q) {
-	this->answers.push_back(new GF2E_Element[words_per_block * this->num_servers]);
+        this->answers.push_back(new GF2E_Element[words_per_block * this->num_servers]);
     }
     nqueries_t total_queries = this->answers.size();
     
@@ -893,6 +851,15 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     // The vector of servers that have responded properly
     nservers_t res = 0;
 
+    // For each query, read the input vector, which is a sequence of
+    // num_blocks entries, each of length sizeof(GF2E_Element) bytes
+    GF2E_Element *input = new GF2E_Element[1];
+    
+    // Read in the value of X to evaluate the input polynomial at!
+    for (nservers_t j = 0; j < this->num_servers; ++j) {
+        isvec[j]->read((char *)input, sizeof(GF2E_Element));
+    }
+    
     return res;
 }
 

@@ -33,13 +33,16 @@ class PercyServer {
 public:
     // Initialize a server with the given DataStore.
     PercyServer(DataStore * datastore) : byzantine(false),
-                     synchronized(true),
+                     synchronized(false),
 					 datastore(datastore) {}
     ~PercyServer() {}
 
     // Tell the server to be Byzantine
     void be_byzantine() { byzantine = true; }
 
+    // Tell the server that it is synchronized
+    void set_synchronized() { synchronized = true; }
+    
     // Tell the server to tolerate unsynchronized databases (and hence compute the content hashes)
     template <typename GF2E_Element>
     void tolerate_unsynchronized(PercyServerParams &params);
@@ -62,17 +65,20 @@ private:
     template <typename GF2E_Element>
     bool handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
 	   std::ostream &os);
-   template <typename GF2E_Element>
+    template <typename GF2E_Element>
     bool handle_hash_request_RS_Sync(PercyServerParams &params, std::istream &is, std::ostream &os, nqueries_t num_queries);
-       
+    template <typename GF2E_Element>
+    bool handle_sync_request_RS_Sync(PercyServerParams &params, std::istream &is,
+	   std::ostream &os);
+    
     // hash computation methods
     void compute_hashes(PercyServerParams &params);
     
     bool byzantine;
     bool synchronized;
     void compute_one(ZZ_p *value, bool hybrid_protection,
-	dbsize_t num_blocks, nqueries_t num_queries,
-	const vec_ZZ_p *inputvector, dbsize_t c);
+        dbsize_t num_blocks, nqueries_t num_queries,
+        const vec_ZZ_p *inputvector, dbsize_t c);
 
 protected:
     DataStore *datastore;
