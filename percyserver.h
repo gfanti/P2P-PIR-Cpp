@@ -70,8 +70,6 @@ private:
     bool handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
 	   std::ostream &os);
     template <typename GF2E_Element>
-    bool handle_hash_request_RS_Sync(PercyServerParams &params, std::istream &is, std::ostream &os, nqueries_t num_queries);
-    template <typename GF2E_Element>
     bool handle_sync_request_RS_Sync(PercyServerParams &params, std::istream &is,
 	   std::ostream &os);
     // compute the actual hashes

@@ -402,45 +402,26 @@ template <typename GF2E_Element>
 bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream &is,
         std::ostream &os)
 {
-    if(!is.eof()) {
-        // Read some values from the params
-        // dbsize_t words_per_block = params.words_per_block();
-        // dbsize_t num_bytes = params.num_blocks() / 8;
-        // dbsize_t max_unsynchronized = params.max_unsynchronized();
-
-        // Read the number of queries
-        unsigned char nq[2];
-        is.read((char *)nq, 2);
-        if (is.eof()) {
-            return false;
-        }
-        nqueries_t num_queries = (nq[0] << 8) | nq[1];
-        if (num_queries == 0) {
-            std::cerr << "No queries were requested! \n";
-            return false;
-        }
-        if (params.get_mode() == MODE_RS_SYNC) {
-            return PercyServer::handle_hash_request_RS_Sync<GF2E_Element>(params, is, os, num_queries);
-        }
-    }
-    return false;
-}
-
-template <typename GF2E_Element>
-bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::istream &is,
-            std::ostream &os, nqueries_t num_queries)
-{
-    // write out the computed hashes (to find which files are unsynchronized) to the output stream
-    // these hashes were previously computed in the initialization
-    
-    if (is.eof()) {
+    if(is.eof()) {
         return false;
     }
-
     // Read some values from the params
     dbsize_t words_per_block = params.words_per_block();
     dbsize_t num_blocks = params.num_blocks();
+    // dbsize_t num_bytes = params.num_blocks() / 8;
     // dbsize_t max_unsynchronized = params.max_unsynchronized();
+
+    // Read the number of queries
+    unsigned char nq[2];
+    is.read((char *)nq, 2);
+    if (is.eof()) {
+        return false;
+    }
+    nqueries_t num_queries = (nq[0] << 8) | nq[1];
+    if (num_queries == 0) {
+        std::cerr << "No queries were requested! \n";
+        return false;
+    }
 
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
@@ -485,12 +466,13 @@ bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::is
 
     // Send the output vector to the client via the ostream
     os.write((char *)output,
-		num_queries*words_per_block*sizeof(GF2E_Element));
+        num_queries*words_per_block*sizeof(GF2E_Element));
     os.flush();
     delete[] input;
     delete[] output;
 
     return true;
+
 }
 
 template <typename GF2E_Element>
@@ -543,8 +525,6 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     }
 
     // Send the output vector to the client via the ostream
-    // std::cerr << "Going to write " << WORDS_PER_BLOCK * sizeof(GF2E_Element) << " bytes to output stream.\n";
-    // std::cerr << "INcluding " << output[3][4] << " which is output[3][4].\n";
     for (dbsize_t k = 0; k < num_rows; k++) {
         os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
     }
