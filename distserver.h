@@ -29,10 +29,10 @@
 class PercyDistServerParams : public PercyServerParams {
 public:
     PercyDistServerParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    nservers_t tau, ZZ modulus, PercyMode mode, bool be_byzantine,
+	    dbsize_t expansion_factor, nservers_t tau, ZZ modulus, PercyMode mode, bool be_byzantine,
 	    char *pcparams_filename, bool do_spir, nservers_t sid,
 	    dbsize_t vsplit = 1, dbsize_t hsplit = 1) :
-	PercyServerParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode,
+	PercyServerParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, modulus, mode,
 		be_byzantine, pcparams_filename, do_spir, sid),
 	vsplit(vsplit),
 	hsplit(hsplit),
@@ -88,7 +88,7 @@ public:
 	dbsize_t new_wpb = _words_per_block / hsplit;
 	dbsize_t new_nb = _num_blocks / vsplit;
 	// NOTE: We assume all workers will not do SPIR
-	return PercyServerParams(new_wpb, new_nb, _tau, _max_unsynchronized, modulus, mode, be_byzantine, 
+	return PercyServerParams(new_wpb, new_nb, _tau, _max_unsynchronized, _expansion_factor, modulus, mode, be_byzantine, 
 		pcparams_filename, false, sid);
     }
 

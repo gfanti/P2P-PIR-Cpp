@@ -43,7 +43,8 @@
 
 void print_usage_exit(char *bin)
 {
-    std::cerr << "Usage: " << bin << " [OPTIONS...] r s w ell k t u \"idx1 idx2 ... idxq\" \"sid1:addr1:port1 ... sidell:addrell:portell\"" << std::endl;
+    
+    std::cerr << "Usage: " << bin << " [OPTIONS...] r s u e w ell k t \"idx1 idx2 ... idxq\" \"sid1:addr1:port1 ... sidell:addrell:portell\"" << std::endl;
     std::cerr << "Query the specified PIR servers at the specified indices.";
     std::cerr << std::endl;
     std::cerr << "   r     number of blocks." << std::endl;
@@ -53,6 +54,7 @@ void print_usage_exit(char *bin)
     std::cerr << "   k     number of servers that need to respond." << std::endl;
     std::cerr << "   t     number of servers that can collude." << std::endl;
     std::cerr << "   u     maximum number of files that can be unsynchronized across servers." << std::endl;
+    std::cerr << "   e     expansion factor for synchronization bins." << std::endl;
     std::cerr << "   idxi  indices of blocks to fetch (0-based)." << std::endl;
     std::cerr << "   sidi:addri:porti  the SID, address and port number for each of the ell servers." << std::endl;
     std::cerr << std::endl;
@@ -249,6 +251,7 @@ int main(int argc, char **argv)
     dbsize_t num_blocks = strtoull(argv[optind++], NULL, 10);
     dbsize_t words_per_block = strtoull(argv[optind++], NULL, 10);
     dbsize_t max_unsynchronized = strtoull(argv[optind++], NULL, 10);
+    dbsize_t expansion_factor = strtoull(argv[optind++], NULL, 10);
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
 	
     
@@ -495,11 +498,11 @@ int main(int argc, char **argv)
     PercyClientParams *clientparams = NULL;
     if (do_hybrid)
     {
-        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, tau, p1, p2);
+        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, p1, p2);
     }
     else
     {
-        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, tau, modulus, mode, pcparams_file, do_spir);
+        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, modulus, mode, pcparams_file, do_spir);
     }
     
     

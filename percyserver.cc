@@ -508,7 +508,7 @@ void PercyServer::tolerate_unsynchronized(PercyServerParams &params)
 
 void PercyServer::compute_hashes(PercyServerParams &params)
 {  
-    int parity_symbols = 2 * params.max_unsynchronized(); // the number of parity bits we want to obtain 
+    // int parity_symbols = 2 * params.max_unsynchronized(); // the number of parity bits we want to obtain 
     
     // compute the parity bits using a reed-solomon code
 }

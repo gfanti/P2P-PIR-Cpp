@@ -792,13 +792,13 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_replies (
                 isvec[j]->read((char *)(this->answers[q] + i * this->num_servers + j), sizeof(GF2E_Element));
                 if (isvec[j]->eof()) {
                     std::cerr << "Server " << j+1 << " did not send complete reply.\n";
-                    std::cerr << "Marking server " << j+1 << " as bad.\n";
+                    std::cerr << "Marking server " << j+1 << " as bad (first).\n";
                     isgood = false;
                     break;
                 }
                 if ((dbsize_t)(isvec[j]->gcount()) < 1) {
                     // Mark this server as bad
-                    std::cerr << "Marking server " << j+1 << " as bad.\n";
+                    std::cerr << "Marking server " << j+1 << " as bad (second).\n";
                     isgood = false;
                     break;
                 }
@@ -850,14 +850,30 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
 {
     // The vector of servers that have responded properly
     nservers_t res = 0;
-
+    dbsize_t words_per_block = this->params.words_per_block();
+    dbsize_t max_unsynchronized = this->params.max_unsynchronized();
+    dbsize_t expansion_factor = this->params.expansion_factor();
+    
+    dbsize_t num_rows = 3 * expansion_factor * max_unsynchronized;
+    
+    
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
-    GF2E_Element *input = new GF2E_Element[1];
+    // GF2E_Element *input = new GF2E_Element[words_per_block];
+    std::vector<std::array<GF2E_Element,WORDS_PER_BLOCK> > input(num_rows);
+    GF2E_Element filler = 0;
+    for (dbsize_t i=0; i<num_rows; i++) {
+        input[i].fill(filler);
+    }
     
     // Read in the value of X to evaluate the input polynomial at!
     for (nservers_t j = 0; j < this->num_servers; ++j) {
-        isvec[j]->read((char *)input, sizeof(GF2E_Element));
+        for (dbsize_t k = 0; k < num_rows; k++) {
+            // os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
+            // THIS IS OVERWRITING INPUT FROM PREVIOUS SERVERS!
+            isvec[j]->read((char *) &input[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
+        }
+        std::cerr << "Read " << words_per_block * sizeof(GF2E_Element) << " bytes from input stream.\n";
     }
     
     return res;

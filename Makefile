@@ -18,7 +18,7 @@
 #Set to `true` if the build should support SPIR
 SPIR_SUPPORT=false
 
-CXXFLAGS=-Wall -g -O2 -pedantic -I/usr/local/include/NTL
+CXXFLAGS=-Wall -g -O2 -pedantic -I/usr/local/include/NTL -std=c++11
 LDLIBS=-lntl -lgmp -pthread -lsocket++ -L/usr/local/lib -L/usr/lib/x86_64-linux-gnu -lgcrypt
 
 TESTS=findpolys_test rr_test time_findpolys time_findpolys_gf28 time_findpolys_w8 time_findpolys_w16 time_findpolys_w32 testdistserver
@@ -93,7 +93,7 @@ findpolys_test: rsdecoder.cc FXY.o gf2e.o subset_iter.o portfolio.o
 	g++ $(CXXFLAGS) -DTEST_FINDPOLYS -o $@ $^ $(LDLIBS)
 
 testdistserver: testdistserver.cc cmdtools.o
-	g++ -o $@ $^
+	g++ -o $@ $^ -std=c++11
 
 clean:
 	-rm -f *.o

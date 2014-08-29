@@ -91,6 +91,7 @@ void print_usage_options () {
     std::cerr << "   -w WORDSIZE            use a word size of WORDSIZE bytes (default: 8)." << std::endl;
     std::cerr << "   -b BLOCKSIZE           use a block size of BLOCKSIZE bytes (default: sqrt(DBBYTES*WORDSIZE)/8)." << std::endl;
     std::cerr << "   -u MAX_UNSYNCHRONIZED  specifies the maximum number of db files that can be unsynchronized." << std::endl;
+    std::cerr << "   -e EXPANSION_FACTOR    specifies the expansion factor in the number of bins to produce for synchronization." << std::endl;
     std::cerr << "   -t, -tau               specify that database is tau independent." << std::endl;
     std::cerr << "   -S, --SID SERVERID     use the specified SID." << std::endl;
     std::cerr << "   -p, --port PORTNO      listen for connections on the specified port." << std::endl;
@@ -222,6 +223,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
     dbsize_t w = 0;
     dbsize_t b = 0;
     dbsize_t max_unsynchronized = 0; //max number of unsynchronized records in the database
+    dbsize_t expansion_factor = 1; //max number of unsynchronized records in the database
 
     // Threading parameters
     dbsize_t num_threads = 0;
@@ -244,6 +246,9 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
             case 'u':
                 max_unsynchronized = strtoull(optarg, NULL, 10);
                 break;
+            case 'e':
+                expansion_factor = strtoull(optarg, NULL, 10);
+                break;
             case 't':
                 is_tau = true;
                 break;
@@ -262,7 +267,6 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
                 }
                 else if(!strcmp(optarg, "RS_SYNC") || !strcmp(optarg, "r")) {
                     mode = MODE_RS_SYNC;
-                    std::cerr << "chose rs_sync mode!\n";
                 }
                 else {
                     std::cerr << "Unknown mode selected. Valid modes are ZZ_P, GF28, GF216 and CHOR.\n\n";
@@ -541,7 +545,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
 
     // Create the PercyServerParams object.
     PercyServerParams * params = new PercyServerParams(
-	    words_per_block, num_blocks, max_unsynchronized, is_tau, modulus, mode, 
+	    words_per_block, num_blocks, max_unsynchronized, expansion_factor, is_tau, modulus, mode, 
 	    be_byzantine, pcparams_file, do_spir, sid,
 	    num_threads, ttype, tmethod);
 
@@ -818,6 +822,7 @@ struct option longopts[] = {
     {"b",		    required_argument,	NULL, 'b'},
     {"w",		    required_argument,	NULL, 'w'},
     {"u",		    required_argument,	NULL, 'u'},
+    {"e",		    required_argument,	NULL, 'e'},
     {"tau",		    no_argument,	NULL, 't'},
     {"mode",		    required_argument,  NULL, 'm'},
     {"hybrid",		    no_argument,        NULL, 'h'},
@@ -856,13 +861,13 @@ int main (int argc, char ** argv)
     // Parse arguments
 
     #if defined(DIST_MASTER) & defined(SPIR_SUPPORT)
-        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:";
+        const char * shortopts = "d:n:b:u:e:w:tm:hz1S:p:F:G:s:";
     #elif defined(DIST_MASTER)
-        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:";
+        const char * shortopts = "d:n:b:u:e:w:tm:hz1S:p:F:G:";
     #elif defined(SPIR_SUPPORT)
-        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:s:T:P:Q:";
+        const char * shortopts = "d:n:b:u:e:w:tm:hz1S:p:F:G:s:T:P:Q:";
     #else
-        const char * shortopts = "d:n:b:w:u:tm:hz1S:p:F:G:T:P:Q:";
+        const char * shortopts = "d:n:b:u:e:w:tm:hz1S:p:F:G:T:P:Q:";
     #endif
     ParsedArgs pargs;
     if (!parse_long_opts(argc, argv, shortopts, longopts, pargs)) {

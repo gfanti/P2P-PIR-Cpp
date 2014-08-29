@@ -33,6 +33,8 @@
 
 NTL_CLIENT
 
+// this is also defined in percyclient.h!
+constexpr dbsize_t WORDS_PER_BLOCK = 1024;
 
 class PercyClient {
 public:

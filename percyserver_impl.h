@@ -21,8 +21,13 @@
 #define __PERCYSERVER_IMPL_H__
 
 #include <iostream>
+#include <array>
+#include <typeinfo>
 #include "percyparams.h"
 #include "gf2e.h"
+
+// this is also defined in percyserver.h!
+// constexpr dbsize_t WORDS_PER_BLOCK = 1024;
 
 // Compute single-query outputs
 template <typename GF2E_Element>
@@ -244,64 +249,74 @@ inline void compute_outputvec_multi<GF216_Element>(
 }
 
 
-// Synchronization computation
-template <typename GF2E_Element>
-inline void compute_outputvec_sync(
-        const GF2E_Element *data, GF2E_Element *inputvec, GF2E_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block);
-        
-template <>
-inline void compute_outputvec_sync<GF216_Element>( const GF216_Element *data, 
-        GF216_Element *inputvec, GF216_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block ) {
+template<dbsize_t arrSize>
+void PercyServer::compute_outputvec_sync( 
+        const GF216_Element *data, 
+        std::vector<std::array<GF216_Element, arrSize> > outputvec,
+        dbsize_t num_blocks, 
+        dbsize_t words_per_block,
+        dbsize_t max_unsynchronized,
+        dbsize_t num_rows,
+        GF216_Element x ) {
     
     const GF216_Element *block = data;
-    for (dbsize_t j = 0; j < num_blocks; ++j) {
-        GF216_Element inpv_j = inputvec[j];
-        if (inpv_j != 0) {
-            const GF216_Element *blockc = block;
-            GF216_Element log_j = GF216_log_table[inpv_j];
-            const GF216_Element *start = GF216_exp_table + log_j;
-            GF216_Element *oc = outputvec;
-            GF216_Element *oc_end = oc + (words_per_block & ~3);
-            GF216_Element block_c;
-            while(oc < oc_end) {
-                uint64_t accum = 0;
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c];
+    // retrieve the compression matrix
+    // const compression_mtx[][num_blocks] = retrieve_compression_matrix<GF216_Element>(x, data);
+    
+    
+    
+    for (dbsize_t k = 0; k < num_rows; ++k) {
+        block = data;
+        for (dbsize_t j = 0; j < num_blocks; ++j) {
+            GF216_Element inpv_j = 0; //compression_mtx[k][j];
+            if (inpv_j != 0) {
+                // Multiply the next entire block by j, and then xor it with the current results
+                // we simply need to choose which outputvec we're going to add it to.
+                const GF216_Element *blockc = block;
+                GF216_Element log_j = GF216_log_table[inpv_j];
+                const GF216_Element *start = GF216_exp_table + log_j;
+                GF216_Element *oc = &outputvec[k][0];
+                GF216_Element *oc_end = oc + (words_per_block & ~3);
+                GF216_Element block_c;
+                while(oc < oc_end) {
+                    uint64_t accum = 0;
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c];
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 16;
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 32;
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 48;
+                    }
+                    *((uint64_t *) oc) ^= accum;
+                    oc+=4;
                 }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 16;
+                for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        *oc ^= start[log_c];
+                    }
                 }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 32;
-                }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 48;
-                }
-                *((uint64_t *) oc) ^= accum;
-                oc+=4;
             }
-            for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    *oc ^= start[log_c];
-                }
-            }
+        
+            block += words_per_block;
         }
-        block += words_per_block;
     }
 }
-
+    
 template <typename GF2E_Element>
 bool PercyServer::handle_request_GF2E(PercyServerParams &params
 	, std::istream &is, std::ostream &os) 
@@ -382,9 +397,9 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
 {
     if(!is.eof()) {
         // Read some values from the params
-        dbsize_t words_per_block = params.words_per_block();
-        dbsize_t num_bytes = params.num_blocks() / 8;
-        dbsize_t max_unsynchronized = params.max_unsynchronized();
+        // dbsize_t words_per_block = params.words_per_block();
+        // dbsize_t num_bytes = params.num_blocks() / 8;
+        // dbsize_t max_unsynchronized = params.max_unsynchronized();
 
         // Read the number of queries
         unsigned char nq[2];
@@ -400,8 +415,8 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
         if (params.get_mode() == MODE_RS_SYNC) {
             return PercyServer::handle_hash_request_RS_Sync<GF2E_Element>(params, is, os, num_queries);
         }
-        return false;
     }
+    return false;
 }
 
 template <typename GF2E_Element>
@@ -418,7 +433,7 @@ bool PercyServer::handle_hash_request_RS_Sync(PercyServerParams &params, std::is
     // Read some values from the params
     dbsize_t words_per_block = params.words_per_block();
     dbsize_t num_blocks = params.num_blocks();
-    dbsize_t max_unsynchronized = params.max_unsynchronized();
+    // dbsize_t max_unsynchronized = params.max_unsynchronized();
 
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
@@ -475,19 +490,30 @@ template <typename GF2E_Element>
 bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::istream &is,
         std::ostream &os)
 {
-
     // Read some values from the params
-    dbsize_t words_per_block = params.words_per_block();
-    dbsize_t num_bytes = params.num_blocks() / 8;
+    // dbsize_t words_per_block = params.words_per_block();
+    
+    if ( WORDS_PER_BLOCK != params.words_per_block() ) {
+        std::cerr << "The words per block are incorrect!\n";
+        return false;
+    }
+    // dbsize_t num_bytes = params.num_blocks() / 8;
     dbsize_t num_blocks = params.num_blocks();
     dbsize_t max_unsynchronized = params.max_unsynchronized();
+    dbsize_t expansion_factor = params.expansion_factor();
     
-    
+    // How many rows do you want to consider?
+    dbsize_t num_rows = max_unsynchronized * expansion_factor * 3;
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
     GF2E_Element *input = new GF2E_Element[num_blocks];
-    GF2E_Element *output = new GF2E_Element[words_per_block];
-    memset(output, '\0', words_per_block*sizeof(GF2E_Element));
+    // output will have multiple results (one for each bin) 
+    std::vector<std::array<GF2E_Element,WORDS_PER_BLOCK> > output(num_rows);
+    GF2E_Element filler = 0;
+    for (dbsize_t i=0; i<num_rows; i++) {
+        output[i].fill(filler);
+    }
+    // GF2E_Element *output = new GF2E_Element[words_per_block];
     
     // Read in the value of X to evaluate the input polynomial at!
     is.read((char *)input, sizeof(GF216_Element));
@@ -498,20 +524,26 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     const GF2E_Element *data = (const GF2E_Element*)(ds->get_data());
 
     // Compute the necessary hashes, and return them to the client
-    compute_outputvec_sync<GF2E_Element>(data, input, output, num_blocks, words_per_block);
+    compute_outputvec_sync(data, output, num_blocks, WORDS_PER_BLOCK, 
+        max_unsynchronized, num_rows, x);
 
     // If the server is Byzantine, give wrong output
     if (byzantine) {
-        for (dbsize_t i = 0; i < words_per_block; i++) {
-            output[i]++;
+        for (dbsize_t k = 0; k < num_rows; k++) {
+            for (dbsize_t i = 0; i < WORDS_PER_BLOCK; i++) {
+                output[k][i]++;
+            }
         }
     }
 
     // Send the output vector to the client via the ostream
-    os.write((char *) input, sizeof(GF2E_Element));
+    std::cerr << "Going to write " << WORDS_PER_BLOCK * sizeof(GF2E_Element) << " bytes to output stream.\n";
+    for (dbsize_t k = 0; k < num_rows; k++) {
+        os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
+    }
     os.flush();
     delete[] input;
-    delete[] output;
+    // delete[] output;
 
     return true;
 }
