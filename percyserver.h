@@ -77,8 +77,8 @@ private:
     // compute the actual hashes
     // template <typename GF2E_Element>
     template<dbsize_t arrSize>
-    void compute_outputvec_sync(const GF216_Element *data, std::vector<std::array<GF216_Element, arrSize> > outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t max_unsynchronized, dbsize_t num_rows, GF216_Element x);
+    void compute_outputvec_sync(const GF216_Element *data, std::vector<std::array<GF216_Element, arrSize> > &outputvec,
+        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t max_unsynchronized, dbsize_t num_rows, GF216_Element q_x);
     
     
     // hash computation methods

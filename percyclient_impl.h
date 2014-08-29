@@ -23,6 +23,7 @@
 #include <iostream>
 #include <algorithm>
 #include "gf2e.h"
+#include "pulse.h"
 #include "percyparams.h"
 #include "percyresult.h"
 
@@ -725,15 +726,25 @@ int PercyClient_RS_Sync<GF2E_Element>::send_sync_request(std::vector<ostream*> &
         return -1;
     }
     
-     // Send the params and query to each server
+    // Build the query polynomial ( q(X) = X^t + X^(t-1) + ... + X + 1 )
+    GF2E_Element * coeffs = new GF2E_Element[this->t+1];
+    coeffs[0] = 0;
+    for (nservers_t i=1;i<=this->t;++i) {
+        coeffs[i] = 1;
+    }
+    
+    // Send the query to each server
     for (nservers_t j = 0; j < this->num_servers; ++j) {
-        unsigned char x[2];  //this stores the number of queries, and is read by the server
-        x[0] = ((char) (j+1) & 0xff);
-        x[1] = 0x00;
-        osvec[j]->write((char *)x, 2); 
+        
+        GF2E_Element q_x = evalpoly_GF2E<GF2E_Element>(coeffs, this->t, j+1);
+        unsigned char query[2];  //this stores the value of the query polynomial
+        query[0] = (q_x >> 8) & 0xff;
+        query[1] = (q_x & 0xff);
+        osvec[j]->write((char *)query, 2); 
         osvec[j]->flush();
     }
 
+    delete[] coeffs;
     return 0;
 }
 
@@ -873,7 +884,9 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
             // THIS IS OVERWRITING INPUT FROM PREVIOUS SERVERS!
             isvec[j]->read((char *) &input[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
         }
-        std::cerr << "Read " << words_per_block * sizeof(GF2E_Element) << " bytes from input stream.\n";
+        // std::cerr << "Read " << words_per_block * sizeof(GF2E_Element) << " bytes from input stream.\n";
+        // std::cerr << "Including " << input[3][4] << " which is input[3][4].\n";
+        
     }
     
     return res;

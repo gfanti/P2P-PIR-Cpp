@@ -748,10 +748,10 @@ static void handle_requests(PercyServer * server, std::istream &is, std::ostream
     struct timeval ts, te;
     gettimeofday(&ts, NULL);
     while (server->handle_request(serverparams, is, os)) {
-	gettimeofday(&te, NULL);
-	int td = (te.tv_sec - ts.tv_sec)*1000000 + (te.tv_usec - ts.tv_usec);
-	fprintf(stderr, "%d.%03d msec computation + communication\n", td/1000, td%1000);
-	gettimeofday(&ts, NULL);
+        gettimeofday(&te, NULL);
+        int td = (te.tv_sec - ts.tv_sec)*1000000 + (te.tv_usec - ts.tv_usec);
+        fprintf(stderr, "%d.%03d msec computation + communication\n", td/1000, td%1000);
+        gettimeofday(&ts, NULL);
     }
     std::cerr << "Query completed." << std::endl;
 }

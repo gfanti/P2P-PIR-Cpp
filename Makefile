@@ -28,8 +28,8 @@ TARGETS=pirserver pirserver_master pirclient splitdatabase
 RUNFILES=database database.* out.client out.real
 
 CLIENT_O=percyclient.o percyparams.o recover.o rsdecoder.o percyio.o \
-		FXY.o gf2e.o subset_iter.o subset.o portfolio.o
-SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf2e.o distserver.o \
+		FXY.o gf2e.o pulse.o subset_iter.o subset.o portfolio.o
+SERVER_O=percyserver.o percyparams.o datastore.o percyio.o gf2e.o pulse.o distserver.o \
 		threadedserver.o cmdtools.o
 SRCS=$(subst .o,.cc,$(CLIENT_O) $(SERVER_O) pirclient.o pirserver.o splitdatabase.o percyio.o)
 LIBS=libpercyserver.a libpercyclient.a
@@ -112,7 +112,7 @@ depend:
 percyclient.o: /usr/local/include/NTL/vec_vec_ZZ_p.h
 percyclient.o: /usr/local/include/NTL/ZZ_pX.h percyclient.h
 percyclient.o: /usr/local/include/NTL/vec_GF2E.h percyresult.h percytypes.h
-percyclient.o: percyparams.h gf2e.h rsdecoder.h FXY.h portfolio.h recover.h
+percyclient.o: percyparams.h gf2e.h pulse.h rsdecoder.h FXY.h portfolio.h recover.h
 percyclient.o: percyclient_impl.h rsdecoder_impl.h subset.h subset_iter.h
 percyparams.o: percyparams.h percytypes.h percyio.h
 percyparams.o: /usr/local/include/NTL/ZZ.h
@@ -123,11 +123,12 @@ rsdecoder.o: recover.h gf2e.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
 FXY.o: FXY.h
 gf2e.o: gf2e.h
+pulse.o: pulse.h
 subset_iter.o: subset_iter.h percytypes.h
 subset.o: subset.h percytypes.h
 portfolio.o: portfolio.h
 percyserver.o: /usr/local/include/NTL/vec_ZZ_p.h percytypes.h percyserver.h
-percyserver.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h gf2e.h
+percyserver.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h gf2e.h pulse.h
 percyserver.o: percyserver_impl.h
 percyparams.o: percyparams.h percytypes.h percyio.h
 percyparams.o: /usr/local/include/NTL/ZZ.h
@@ -135,6 +136,7 @@ datastore.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h
 datastore.o: percytypes.h percyio.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h
 gf2e.o: gf2e.h
+pulse.o: pulse.h
 distserver.o: percyio.h /usr/local/include/NTL/ZZ.h distserver.h datastore.h
 distserver.o: percyparams.h percytypes.h percyserver.h
 distserver.o: /usr/local/include/NTL/vec_ZZ_p.h gf2e.h
@@ -149,7 +151,7 @@ pirclient.o: percyparams.h gf2e.h rsdecoder.h FXY.h portfolio.h recover.h
 pirclient.o: percyclient_impl.h config.h version.h
 pirserver.o: datastore.h /usr/local/include/NTL/ZZ.h percyparams.h
 pirserver.o: percytypes.h percyserver.h /usr/local/include/NTL/vec_ZZ_p.h
-pirserver.o: gf2e.h config.h version.h distserver.h threadedserver.h
+pirserver.o: gf2e.h pulse.h config.h version.h distserver.h threadedserver.h
 pirserver.o: cmdtools.h
 splitdatabase.o: percyio.h /usr/local/include/NTL/ZZ.h config.h version.h
 percyio.o: percyio.h /usr/local/include/NTL/ZZ.h

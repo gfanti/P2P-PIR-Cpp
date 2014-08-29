@@ -25,6 +25,7 @@
 #include <typeinfo>
 #include "percyparams.h"
 #include "gf2e.h"
+#include "pulse.h"
 
 // this is also defined in percyserver.h!
 // constexpr dbsize_t WORDS_PER_BLOCK = 1024;
@@ -252,67 +253,72 @@ inline void compute_outputvec_multi<GF216_Element>(
 template<dbsize_t arrSize>
 void PercyServer::compute_outputvec_sync( 
         const GF216_Element *data, 
-        std::vector<std::array<GF216_Element, arrSize> > outputvec,
+        std::vector<std::array<GF216_Element, arrSize> > &outputvec,
         dbsize_t num_blocks, 
         dbsize_t words_per_block,
         dbsize_t max_unsynchronized,
         dbsize_t num_rows,
-        GF216_Element x ) {
+        GF216_Element q_x ) {
     
     const GF216_Element *block = data;
-    // retrieve the compression matrix
-    // const compression_mtx[][num_blocks] = retrieve_compression_matrix<GF216_Element>(x, data);
     
-    
-    
-    for (dbsize_t k = 0; k < num_rows; ++k) {
+    for (dbsize_t j = 0; j < num_blocks; ++j) {
         block = data;
-        for (dbsize_t j = 0; j < num_blocks; ++j) {
-            GF216_Element inpv_j = 0; //compression_mtx[k][j];
-            if (inpv_j != 0) {
-                // Multiply the next entire block by j, and then xor it with the current results
-                // we simply need to choose which outputvec we're going to add it to.
-                const GF216_Element *blockc = block;
-                GF216_Element log_j = GF216_log_table[inpv_j];
-                const GF216_Element *start = GF216_exp_table + log_j;
-                GF216_Element *oc = &outputvec[k][0];
-                GF216_Element *oc_end = oc + (words_per_block & ~3);
-                GF216_Element block_c;
-                while(oc < oc_end) {
-                    uint64_t accum = 0;
-                    block_c = *(blockc++);
-                    if (block_c != 0) {
-                        GF216_Element log_c = GF216_log_table[block_c];
-                        accum |= (uint64_t) start[log_c];
+        // std::cerr << "Multiplying everything by " << q_x << std::endl;
+        for (GF216_Element k = 0; k < DEGREE; ++k) {
+            // Which bin should we put this in?
+            GF216_Element bin = GF216_pulse_mtx_6bins[j][k];
+            
+            for (GF216_Element m = 0; m < NUM_RATIOS; ++m) {
+                // Multiply the element by the product of alpha^(m*n)*q[j], where
+                //      alpha is a primitive element of GF2^16
+                GF216_Element inpv_j = multiply_GF2E( q_x,
+                                        GF216_exp_table[multiply_GF2E(m,(GF216_Element) j)]);
+                if (inpv_j != 0) {
+                    // Multiply the next entire block by j, and then xor it with the current results
+                    // we simply need to choose which outputvec we're going to add it to.
+                    const GF216_Element *blockc = block;
+                    GF216_Element log_j = GF216_log_table[inpv_j];
+                    const GF216_Element *start = GF216_exp_table + log_j;
+                    GF216_Element *oc = &outputvec[bin][0];
+                    GF216_Element *oc_end = oc + (words_per_block & ~3);
+                    GF216_Element block_c;
+                    while(oc < oc_end) {
+                        uint64_t accum = 0;
+                        block_c = *(blockc++);
+                        if (block_c != 0) {
+                            GF216_Element log_c = GF216_log_table[block_c];
+                            accum |= (uint64_t) start[log_c];
+                        }
+                        block_c = *(blockc++);
+                        if (block_c != 0) {
+                            GF216_Element log_c = GF216_log_table[block_c];
+                            accum |= (uint64_t) start[log_c] << 16;
+                        }
+                        block_c = *(blockc++);
+                        if (block_c != 0) {
+                            GF216_Element log_c = GF216_log_table[block_c];
+                            accum |= (uint64_t) start[log_c] << 32;
+                        }
+                        block_c = *(blockc++);
+                        if (block_c != 0) {
+                            GF216_Element log_c = GF216_log_table[block_c];
+                            accum |= (uint64_t) start[log_c] << 48;
+                        }
+                        *((uint64_t *) oc) ^= accum;
+                        oc+=4;
                     }
-                    block_c = *(blockc++);
-                    if (block_c != 0) {
-                        GF216_Element log_c = GF216_log_table[block_c];
-                        accum |= (uint64_t) start[log_c] << 16;
+                    for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
+                        block_c = *(blockc++);
+                        if (block_c != 0) {
+                            GF216_Element log_c = GF216_log_table[block_c];
+                            *oc ^= start[log_c];
+                        }
                     }
-                    block_c = *(blockc++);
-                    if (block_c != 0) {
-                        GF216_Element log_c = GF216_log_table[block_c];
-                        accum |= (uint64_t) start[log_c] << 32;
-                    }
-                    block_c = *(blockc++);
-                    if (block_c != 0) {
-                        GF216_Element log_c = GF216_log_table[block_c];
-                        accum |= (uint64_t) start[log_c] << 48;
-                    }
-                    *((uint64_t *) oc) ^= accum;
-                    oc+=4;
                 }
-                for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
-                    block_c = *(blockc++);
-                    if (block_c != 0) {
-                        GF216_Element log_c = GF216_log_table[block_c];
-                        *oc ^= start[log_c];
-                    }
-                }
+            
+                block += words_per_block;
             }
-        
-            block += words_per_block;
         }
     }
 }
@@ -335,6 +341,7 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
     if (is.eof()) {
         return false;
     }
+
     nqueries_t num_queries = (nq[0] << 8) | nq[1];
     if (num_queries == 0) {
         std::cerr << "No more queries\n";
@@ -506,7 +513,6 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     dbsize_t num_rows = max_unsynchronized * expansion_factor * 3;
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
-    GF2E_Element *input = new GF2E_Element[num_blocks];
     // output will have multiple results (one for each bin) 
     std::vector<std::array<GF2E_Element,WORDS_PER_BLOCK> > output(num_rows);
     GF2E_Element filler = 0;
@@ -516,16 +522,16 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     // GF2E_Element *output = new GF2E_Element[words_per_block];
     
     // Read in the value of X to evaluate the input polynomial at!
-    is.read((char *)input, sizeof(GF216_Element));
-
-    GF216_Element x = (input[1] << 8) | input[0];
+    unsigned char input[sizeof(GF2E_Element)];
+    is.read((char *)input, sizeof(GF2E_Element));
+    GF2E_Element q_x = (input[0] << 8) | input[1];
 
     const MemoryDataStore* ds = static_cast<MemoryDataStore*>(datastore);
     const GF2E_Element *data = (const GF2E_Element*)(ds->get_data());
 
     // Compute the necessary hashes, and return them to the client
     compute_outputvec_sync(data, output, num_blocks, WORDS_PER_BLOCK, 
-        max_unsynchronized, num_rows, x);
+        max_unsynchronized, num_rows, q_x);
 
     // If the server is Byzantine, give wrong output
     if (byzantine) {
@@ -537,13 +543,12 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     }
 
     // Send the output vector to the client via the ostream
-    std::cerr << "Going to write " << WORDS_PER_BLOCK * sizeof(GF2E_Element) << " bytes to output stream.\n";
+    // std::cerr << "Going to write " << WORDS_PER_BLOCK * sizeof(GF2E_Element) << " bytes to output stream.\n";
+    // std::cerr << "INcluding " << output[3][4] << " which is output[3][4].\n";
     for (dbsize_t k = 0; k < num_rows; k++) {
         os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
     }
     os.flush();
-    delete[] input;
-    // delete[] output;
 
     return true;
 }
