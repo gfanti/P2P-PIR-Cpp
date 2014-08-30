@@ -263,7 +263,6 @@ void PercyServer::compute_outputvec_sync(
     const GF216_Element *block = data;
     
     for (dbsize_t j = 0; j < num_blocks; ++j) {
-        block = data;
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
         for (GF216_Element k = 0; k < DEGREE; ++k) {
             // Which bin should we put this in?
@@ -317,9 +316,9 @@ void PercyServer::compute_outputvec_sync(
                     }
                 }
             
-                block += words_per_block;
             }
         }
+        block += words_per_block;
     }
 }
     

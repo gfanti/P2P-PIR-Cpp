@@ -845,25 +845,95 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
     // GF2E_Element *input = new GF2E_Element[words_per_block];
-    std::vector<std::array<GF2E_Element,WORDS_PER_BLOCK> > input(num_rows);
-    GF2E_Element filler = 0;
-    for (dbsize_t i=0; i<num_rows; i++) {
-        input[i].fill(filler);
+    // std::vector<std::array<GF2E_Element,WORDS_PER_BLOCK> > input(num_rows);
+    std::vector<GF2E_Element*> replies;
+    for (dbsize_t i=0; i<this->num_servers; i++) {
+        replies.push_back(new GF2E_Element[num_rows*WORDS_PER_BLOCK]);
     }
     
-    // Read in the value of X to evaluate the input polynomial at!
+    // Read in the output from the various servers!
     for (nservers_t j = 0; j < this->num_servers; ++j) {
-        for (dbsize_t k = 0; k < num_rows; k++) {
-            // os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
-            // THIS IS OVERWRITING INPUT FROM PREVIOUS SERVERS!
-            isvec[j]->read((char *) &input[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
+        isvec[j]->read((char *) replies[j], num_rows * WORDS_PER_BLOCK * sizeof(GF2E_Element));
+    }
+    
+    // Interpolate the results
+    std::vector<GF2E_Element*> compressed_results;
+    for (dbsize_t i=0; i<num_rows; i++) {
+        compressed_results.push_back(new GF2E_Element[WORDS_PER_BLOCK]);
+    }
+    interpolate_results(replies, this->num_servers, num_rows, compressed_results);
+    
+    // Free the input memory
+    while (replies.size() > 0) {
+        if (replies.back() != NULL) {
+            delete[] replies.back();
         }
-        // std::cerr << "Read " << words_per_block * sizeof(GF2E_Element) << " bytes from input stream.\n";
-        // std::cerr << "Including " << input[3][4] << " which is input[3][4].\n";
-        
+        replies.pop_back();
     }
     
     return res;
+}
+
+// Receive the server's replies to the sync request, return # of servers that
+// gave complete (but not necessarily correct) replies.
+template <typename GF2E_Element>
+void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
+	std::vector<GF2E_Element*> &replies, nservers_t num_servers, 
+    dbsize_t num_rows, std::vector<GF2E_Element*> &compressed_results)
+{
+    dbsize_t result_len = num_rows * WORDS_PER_BLOCK;
+    GF2E_Element *outputvec = new GF2E_Element[result_len];
+    memset(outputvec, '\0', result_len*sizeof(GF2E_Element));
+    const GF216_Element *block;
+    for (dbsize_t j = 0; j < num_servers; ++j) {
+        GF216_Element inpv_j = 1; // fill this in! should be [0 0 ... 1]*V^-1
+        block = replies[j];
+        if (inpv_j != 0) {
+            const GF216_Element *blockc = block;
+            GF216_Element log_j = GF216_log_table[inpv_j];
+            const GF216_Element *start = GF216_exp_table + log_j;
+            GF216_Element *oc = outputvec;
+            GF216_Element *oc_end = oc + (result_len & ~3);
+            GF216_Element block_c;
+            while(oc < oc_end) {
+                uint64_t accum = 0;
+                block_c = *(blockc++);
+                if (block_c != 0) {
+                    GF216_Element log_c = GF216_log_table[block_c];
+                    accum |= (uint64_t) start[log_c];
+                }
+                block_c = *(blockc++);
+                if (block_c != 0) {
+                    GF216_Element log_c = GF216_log_table[block_c];
+                    accum |= (uint64_t) start[log_c] << 16;
+                }
+                block_c = *(blockc++);
+                if (block_c != 0) {
+                    GF216_Element log_c = GF216_log_table[block_c];
+                    accum |= (uint64_t) start[log_c] << 32;
+                }
+                block_c = *(blockc++);
+                if (block_c != 0) {
+                    GF216_Element log_c = GF216_log_table[block_c];
+                    accum |= (uint64_t) start[log_c] << 48;
+                }
+                *((uint64_t *) oc) ^= accum;
+                oc+=4;
+            }
+            for (dbsize_t c = 0; c < (result_len & 3); ++c, ++oc) {
+                block_c = *(blockc++);
+                if (block_c != 0) {
+                    GF216_Element log_c = GF216_log_table[block_c];
+                    *oc ^= start[log_c];
+                }
+            }
+        }
+    }
+    
+    // for (dbsize_t i=0; i<num_rows; i++) {
+        // compressed_results.push_back(new GF2E_Element[WORDS_PER_BLOCK]);
+    // }
+    delete[] outputvec;
 }
 
 template <typename GF2E_Element>

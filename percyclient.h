@@ -63,6 +63,7 @@ public:
     virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec)
     { return 0; }
     
+    
     // Process the server's replies and pass the results to results.  The
     // number of queries that did not successfully decode is returned.
     virtual nqueries_t process_replies(nservers_t h, 
@@ -212,6 +213,8 @@ public:
     virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec);
     // virtual nqueries_t process_sync_replies(nservers_t h,
 	    // vector<PercyBlockResults> &results);
+    virtual void interpolate_results (std::vector<GF2E_Element*> &replies, 
+        nservers_t num_servers, dbsize_t num_rows, std::vector<GF2E_Element*> &compressed_results);
     virtual nqueries_t process_replies(nservers_t h,
 	    vector<PercyBlockResults> &results);
 
