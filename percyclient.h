@@ -207,7 +207,6 @@ public:
     // Virtual members as described in PercyClient class
     virtual int send_request(vector<dbsize_t> block_numbers, 
 	    std::vector<ostream*> &osvec);
-    virtual int send_hash_request(std::vector<ostream*> &osvec);
     virtual int send_sync_request(std::vector<ostream*> &osvec);
     virtual nservers_t receive_replies(std::vector<istream*> &isvec);
     virtual nservers_t receive_sync_replies(std::vector<istream*> &isvec);

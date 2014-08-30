@@ -748,32 +748,6 @@ int PercyClient_RS_Sync<GF2E_Element>::send_sync_request(std::vector<ostream*> &
     return 0;
 }
 
-/* Send a request for the pre-computed hashes by a particular server 
- connected with the ostreams in the given vector. */
-template <typename GF2E_Element>
-int PercyClient_RS_Sync<GF2E_Element>::send_hash_request(std::vector<ostream*> &osvec)
-{
-    if (this->num_servers != osvec.size()) {
-        std::cerr << "Incorrect iostream vector size passed to "
-            "send_request_GF2E.\n";
-        std::cerr << "Was " << osvec.size() << ", should be " << this->num_servers
-            << ".\n";
-        return -1;
-    }
-
-    // Construct the vector of server indices
-    
-    // Send the params and query to each server
-    for (nservers_t j = 0; j < this->num_servers; ++j) {
-        unsigned char nq[2];  //this stores the number of queries, and is read by the server
-        nq[0] = 1;
-        nq[1] = 1;
-        osvec[j]->write((char *)nq, 2);
-        osvec[j]->flush();
-    }
-    return 0;
-}
-
 
 // Receive the server's replies, and return a number of servers that
 // gave complete (but not necessarily correct) replies.
