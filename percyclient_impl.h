@@ -871,6 +871,14 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
         replies.pop_back();
     }
     
+    // Free the input memory
+    while (compressed_results.size() > 0) {
+        if (compressed_results.back() != NULL) {
+            delete[] compressed_results.back();
+        }
+        compressed_results.pop_back();
+    }
+    
     return res;
 }
 
@@ -885,8 +893,23 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
     GF2E_Element *outputvec = new GF2E_Element[result_len];
     memset(outputvec, '\0', result_len*sizeof(GF2E_Element));
     const GF216_Element *block;
+    
     for (dbsize_t j = 0; j < num_servers; ++j) {
-        GF216_Element inpv_j = 1; // fill this in! should be [0 0 ... 1]*V^-1
+        GF216_Element inpv_j; // fill this in! should be [0 0 ... 1]*V^-1
+        switch(num_servers) {
+            case 3:
+                inpv_j = GF216_V_inv_3servers[j];
+                break;
+            case 4:
+                inpv_j = GF216_V_inv_4servers[j];
+                break;
+            case 5:
+                inpv_j = GF216_V_inv_5servers[j];
+                break;
+            default:
+                std::cout << "You need to work out the bottom row of V inverse for " << num_servers << " servers.\n";
+        } 
+    
         block = replies[j];
         if (inpv_j != 0) {
             const GF216_Element *blockc = block;
@@ -930,9 +953,9 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
         }
     }
     
-    // for (dbsize_t i=0; i<num_rows; i++) {
-        // compressed_results.push_back(new GF2E_Element[WORDS_PER_BLOCK]);
-    // }
+    for (dbsize_t i=0; i<num_rows; i++) {
+        std::copy(&outputvec[WORDS_PER_BLOCK*i],&outputvec[WORDS_PER_BLOCK*(i+1)-1],compressed_results[i]);
+    }
     delete[] outputvec;
 }
 
