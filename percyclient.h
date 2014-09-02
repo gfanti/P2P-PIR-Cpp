@@ -33,7 +33,8 @@
 
 NTL_CLIENT
 
-// this is also defined in percyclient.h!
+// Sorry for being a terrible programmer, but...
+// this is also defined in percyserver.h!
 constexpr dbsize_t WORDS_PER_BLOCK = 1024;
 
 class PercyClient {
@@ -215,6 +216,9 @@ public:
 	    // vector<PercyBlockResults> &results);
     virtual void interpolate_results (std::vector<GF2E_Element*> &replies, 
         nservers_t num_servers, dbsize_t num_rows, std::vector<GF2E_Element*> &compressed_results);
+    virtual int checkSingletonRatio(const std::vector<GF2E_Element*> &compressed_results, dbsize_t i);
+    virtual void find_unsynchronized_files(nservers_t num_servers, dbsize_t num_rows, 
+        std::vector<GF2E_Element*> &compressed_results);
     virtual nqueries_t process_replies(nservers_t h,
 	    vector<PercyBlockResults> &results);
 

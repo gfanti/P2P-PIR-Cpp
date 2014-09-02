@@ -863,6 +863,8 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     }
     interpolate_results(replies, this->num_servers, num_rows, compressed_results);
     
+    find_unsynchronized_files(this->num_servers, num_rows, compressed_results);
+    
     // Free the input memory
     while (replies.size() > 0) {
         if (replies.back() != NULL) {
@@ -907,6 +909,7 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
                 inpv_j = GF216_V_inv_5servers[j];
                 break;
             default:
+                inpv_j = 1;
                 std::cout << "You need to work out the bottom row of V inverse for " << num_servers << " servers.\n";
         } 
     
@@ -957,6 +960,87 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
         std::copy(&outputvec[WORDS_PER_BLOCK*i],&outputvec[WORDS_PER_BLOCK*(i+1)-1],compressed_results[i]);
     }
     delete[] outputvec;
+}
+
+template <typename GF2E_Element>
+int PercyClient_RS_Sync<GF2E_Element>::checkSingletonRatio(
+    const std::vector<GF2E_Element*> &compressed_results, dbsize_t i) {
+    
+    int singleton_idx = -1;
+    
+    return singleton_idx;
+    
+}
+
+template <typename GF2E_Element>
+void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
+    nservers_t num_servers, dbsize_t num_rows, std::vector<GF2E_Element*> &compressed_results){
+    
+    // do some PULSE decoding
+    bool done = false;
+    const GF216_Element *block;
+    while (!done) {
+        done = true;
+        for (dbsize_t i=0; i<num_rows; i+=3) {
+            // find the location of the singleton, if there is one
+            int singleton_idx = checkSingletonRatio(compressed_results,i);
+            
+            if (singleton_idx > -1) {
+                done = false;
+                
+                // update the list of nonzero db entries
+                this->sync_error_locs.push_back(singleton_idx);
+                
+                
+                // remove the singleton from the results vector
+                for (GF216_Element j=0; j<DEGREE; j++){
+                    GF216_Element bin = GF216_pulse_mtx_6bins[singleton_idx][j];
+                    for (GF216_Element k=0; k<NUM_RATIOS; k++) {
+                        // subtract the singleton from compressed results
+                        block = compressed_results[i + k];
+                        const GF216_Element *blockc = block;
+                        // GF216_Element log_j = GF216_log_table[inpv_j];
+                        const GF216_Element *start = GF216_exp_table;
+                        GF216_Element *oc = compressed_results[j*NUM_RATIOS + k];
+                        GF216_Element *oc_end = oc + (WORDS_PER_BLOCK & ~3);
+                        GF216_Element block_c;
+                        while(oc < oc_end) {
+                            uint64_t accum = 0;
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c];
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 16;
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 32;
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 48;
+                            }
+                            *((uint64_t *) oc) ^= accum;
+                            oc+=4;
+                        }
+                        for (dbsize_t c = 0; c < (WORDS_PER_BLOCK & 3); ++c, ++oc) {
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                *oc ^= start[log_c];
+                            }
+                        }
+                    }
+                }   
+            }
+        }
+    }
 }
 
 template <typename GF2E_Element>

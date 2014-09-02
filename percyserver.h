@@ -27,6 +27,7 @@
 #include "percyparams.h"
 #include "gf2e.h"
 
+// Sorry for being a terrible programmer, but...
 // this is also defined in percyclient.h!
 constexpr dbsize_t WORDS_PER_BLOCK = 1024;
 
