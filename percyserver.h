@@ -38,8 +38,9 @@ class PercyServer {
 public:
     // Initialize a server with the given DataStore.
     PercyServer(DataStore * datastore) : byzantine(false),
-                     synchronized(false),
-					 datastore(datastore) {}
+                    synchronized(false),
+                    server_unsynchronized(false),
+					datastore(datastore) {}
     ~PercyServer() {}
 
     // Tell the server to be Byzantine
@@ -47,6 +48,9 @@ public:
 
     // Tell the server that it is synchronized
     void set_synchronized() { synchronized = true; }
+    
+    // Tell the server that it should hold unsynchronized files
+    void set_server_unsynchronized() { server_unsynchronized = true; }
     
     // Tell the server to tolerate unsynchronized databases (and hence compute the content hashes)
     template <typename GF2E_Element>
@@ -84,7 +88,8 @@ private:
     void compute_hashes(PercyServerParams &params);
     
     bool byzantine;
-    bool synchronized;
+    bool synchronized; // tells whether this server has undergone the synchronization process
+    bool server_unsynchronized; // flags whether this server is the one that contains unsynchronized files
     void compute_one(ZZ_p *value, bool hybrid_protection,
         dbsize_t num_blocks, nqueries_t num_queries,
         const vec_ZZ_p *inputvector, dbsize_t c);

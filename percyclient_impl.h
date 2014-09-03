@@ -149,9 +149,10 @@ static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *val
     for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
         bool zeroed = true;
         dbsize_t sync_idx = *it;
+        std::cerr << "Unsynchronized val: "<<sync_idx << std::endl;
         for (nservers_t j = 0; j < num_servers; j++) {
             // check if the appropriate values of values is nonzero
-            if (values[(num_blocks + sync_idx) * num_servers + j] != 0) {
+            if (values[(sync_idx * num_servers) + j] != 0) {
                 zeroed = false;
                 break;
             }
@@ -159,25 +160,28 @@ static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *val
         // if the unsynchronized file will be touched by a server, swap its bits with zeros elsewhere
         if (!zeroed) {
             for (nservers_t j = 0; j < num_servers; j++) {
-                // find zeros elsewhere in the vector
-                dbsize_t swap_idx = sync_idx;
-                // how do you check for equality ?
-                while (swap_idx == sync_idx) {
-                    // pick a random new index in the range [0,num_blocks-1]
-                    dbsize_t rand_idx = RandomBits_ulong(8*sizeof(dbsize_t));
-                    // make sure the randomly drawn index is in range and not mis-synchronized
-                    if ((rand_idx >= num_blocks) ||
-                        (std::find(sync_error_locs.begin(), sync_error_locs.end(), rand_idx) == sync_error_locs.end())){
-                        continue;
-                    }
+                // // find zeros elsewhere in the vector
+                // dbsize_t swap_idx = sync_idx;
+                
+                //For now, we are just zeroing out the offending entries instead of swapping them!
+                values[(sync_idx * num_servers) + j] = 0;
+                
+                // // how do you check for equality ?
+                // while (swap_idx == sync_idx) {
+                    // // pick a random new index in the range [0,num_blocks-1]
+                    // dbsize_t rand_idx = RandomBits_ulong(8*sizeof(dbsize_t));
+                    // // make sure the randomly drawn index is in range and not mis-synchronized
+                    // if ((rand_idx >= num_blocks) ||
+                        // (std::find(sync_error_locs.begin(), sync_error_locs.end(), rand_idx) == sync_error_locs.end())){
+                        // continue;
+                    // }
                     
-                    // otherwise, swap the appropriate entries
-                    swap_idx = rand_idx;
-                    // std::swap(values[(num_blocks + sync_idx) * num_servers + j], values[(num_blocks + swap_idx) * num_servers + j]);
+                    // // otherwise, swap the appropriate entries
+                    // swap_idx = rand_idx;
+                    // // std::swap(values[(num_blocks + sync_idx) * num_servers + j], values[(num_blocks + swap_idx) * num_servers + j]);
                     
-                    //For now, we are just zeroing out the offending entries instead of swapping them!
-                    values[(num_blocks + sync_idx) * num_servers + j] = 0;
-                }
+                    
+                // }
             }
         }
     }
@@ -280,10 +284,10 @@ int PercyClient_GF2E<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
         for (nservers_t p = 0; p < num_servers; ++p) {
             for (nqueries_t i = 0; i < num_queries; ++i) {
                 for (dbsize_t j = 0; j < num_blocks; ++j) {
-		    dbsize_t index = (i * num_blocks + j) * num_servers + p;
-		    shares[index] = 
-                        multiply_GF2E<GF2E_Element>(shares[index],
-                                randmults[i+previous_queries][p]);
+                    dbsize_t index = (i * num_blocks + j) * num_servers + p;
+                    shares[index] = 
+                                multiply_GF2E<GF2E_Element>(shares[index],
+                                        randmults[i+previous_queries][p]);
                 }
             }
         }
@@ -297,7 +301,7 @@ int PercyClient_GF2E<GF2E_Element>::send_request(vector<dbsize_t> block_numbers,
         osvec[j]->write((char *)nq, 2);
         for (q=0; q<num_queries; ++q) {
             for (dbsize_t i = 0; i < num_blocks; ++i) {
-		dbsize_t index = (q * num_blocks + i) * num_servers + j;
+                dbsize_t index = (q * num_blocks + i) * num_servers + j;
                 char *shareptr = (char *)&(shares[index]);
                 osvec[j]->write(shareptr, sizeof(GF2E_Element));
             }
@@ -967,7 +971,28 @@ int PercyClient_RS_Sync<GF2E_Element>::checkSingletonRatio(
     const std::vector<GF2E_Element*> &compressed_results, dbsize_t i) {
     
     int singleton_idx = -1;
+    bool singleton = true;
+    GF2E_Element ratio1, ratio2;
+    GF2E_Element previous_ratio = 1;
+    for (dbsize_t j=0; j<4; j++) {
+        ratio1 = (compressed_results[i+1][j])*inverse_GF2E<GF216_Element>(compressed_results[i][j]);
+        ratio2 = (compressed_results[i+2][j])*inverse_GF2E<GF216_Element>(compressed_results[i+1][j]);
+        if (ratio1 != ratio2) {
+            singleton = false;
+            break;
+        }
+        if ((j>0) && (previous_ratio != ratio1)) {
+            singleton = false;
+            break;
+        }
+        previous_ratio = ratio1;
+    }
     
+    
+    if (singleton && (previous_ratio != 0)) {
+        singleton_idx = GF216_log_table[previous_ratio];
+        std::cerr << "singleton idx is " << singleton_idx << std::endl;
+    }
     return singleton_idx;
     
 }
@@ -979,11 +1004,14 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
     // do some PULSE decoding
     bool done = false;
     const GF216_Element *block;
+    this->sync_error_locs.push_back(0);
+    this->sync_error_locs.push_back(1);
     while (!done) {
         done = true;
         for (dbsize_t i=0; i<num_rows; i+=3) {
             // find the location of the singleton, if there is one
             int singleton_idx = checkSingletonRatio(compressed_results,i);
+            std::cerr << "Singleton index is " << singleton_idx << std::endl;
             
             if (singleton_idx > -1) {
                 done = false;

@@ -34,14 +34,14 @@
 template <typename GF2E_Element>
 inline void compute_outputvec_single(
         const GF2E_Element *data, GF2E_Element *inputvec, GF2E_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block);
+        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point);
 
 template <>
 inline void compute_outputvec_single<GF28_Element>(
         const GF28_Element *data, GF28_Element *inputvec, GF28_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block) {
+        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
     const GF28_Element *block = data;
-    for (unsigned int j = 0; j < num_blocks; ++j) {
+    for (unsigned int j = starting_point; j < num_blocks; ++j) {
         const GF28_Element *multrow = GF28_mult_table[inputvec[j]];
         const GF28_Element *blockc = block;
         GF28_Element *oc = outputvec;
@@ -68,47 +68,49 @@ inline void compute_outputvec_single<GF28_Element>(
 template <>
 inline void compute_outputvec_single<GF216_Element>(
         const GF216_Element *data, GF216_Element *inputvec, GF216_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block) {
+        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
     const GF216_Element *block = data;
     for (dbsize_t j = 0; j < num_blocks; ++j) {
-        GF216_Element inpv_j = inputvec[j];
-        if (inpv_j != 0) {
-            const GF216_Element *blockc = block;
-            GF216_Element log_j = GF216_log_table[inpv_j];
-            const GF216_Element *start = GF216_exp_table + log_j;
-            GF216_Element *oc = outputvec;
-            GF216_Element *oc_end = oc + (words_per_block & ~3);
-            GF216_Element block_c;
-            while(oc < oc_end) {
-                uint64_t accum = 0;
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c];
+        if (j >= starting_point){
+            GF216_Element inpv_j = inputvec[j];
+            if (inpv_j != 0) {
+                const GF216_Element *blockc = block;
+                GF216_Element log_j = GF216_log_table[inpv_j];
+                const GF216_Element *start = GF216_exp_table + log_j;
+                GF216_Element *oc = outputvec;
+                GF216_Element *oc_end = oc + (words_per_block & ~3);
+                GF216_Element block_c;
+                while(oc < oc_end) {
+                    uint64_t accum = 0;
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c];
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 16;
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 32;
+                    }
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        accum |= (uint64_t) start[log_c] << 48;
+                    }
+                    *((uint64_t *) oc) ^= accum;
+                    oc+=4;
                 }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 16;
-                }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 32;
-                }
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    accum |= (uint64_t) start[log_c] << 48;
-                }
-                *((uint64_t *) oc) ^= accum;
-                oc+=4;
-            }
-            for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
-                block_c = *(blockc++);
-                if (block_c != 0) {
-                    GF216_Element log_c = GF216_log_table[block_c];
-                    *oc ^= start[log_c];
+                for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
+                    block_c = *(blockc++);
+                    if (block_c != 0) {
+                        GF216_Element log_c = GF216_log_table[block_c];
+                        *oc ^= start[log_c];
+                    }
                 }
             }
         }
@@ -120,12 +122,14 @@ inline void compute_outputvec_single<GF216_Element>(
 template <typename GF2E_Element>
 inline void compute_outputvec_multi(
         const GF2E_Element *data, GF2E_Element *inputvec, GF2E_Element *outputvec,
-        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block);
+        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block,
+        dbsize_t starting_point);
 
 template <>
 inline void compute_outputvec_multi<GF28_Element>(
         const GF28_Element *data, GF28_Element *inputvec, GF28_Element *outputvec,
-        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block) {
+        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block, 
+        dbsize_t starting_point) {
     if (num_queries == 2) {
 	const GF28_Element *block = data;
 	const GF28_Element *inp1 = inputvec;
@@ -242,10 +246,10 @@ inline void compute_outputvec_multi<GF28_Element>(
 template <>
 inline void compute_outputvec_multi<GF216_Element>(
         const GF216_Element *data, GF216_Element *inputvec, GF216_Element *outputvec,
-        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block) {
+        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
     for (nqueries_t q = 0; q < num_queries; q++) {
         compute_outputvec_single<GF216_Element>(data, inputvec + q*num_blocks, 
-                outputvec + q*words_per_block, num_blocks, words_per_block);
+                outputvec + q*words_per_block, num_blocks, words_per_block, starting_point);
     }
 }
 
@@ -262,7 +266,16 @@ void PercyServer::compute_outputvec_sync(
     
     const GF216_Element *block = data;
     
-    for (dbsize_t j = 0; j < num_blocks; ++j) {
+    // If the server is supposed to be unsynchronized, just treat the first 
+    // max_unsynchronized files as zeros
+    dbsize_t starting_point = 0;
+    if (server_unsynchronized) {
+        std::cerr << "\n\nTHIS SERVER IS UNSYNCHRONIZED!\n\n";
+        starting_point = max_unsynchronized;
+        std::cerr << "starting point" << starting_point << "\n";
+    }
+    
+    for (dbsize_t j = starting_point; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
         for (GF216_Element k = 0; k < DEGREE; ++k) {
             // Which bin should we put this in?
@@ -368,10 +381,10 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
     //gettimeofday(&ts, NULL);
     if (num_queries > 1) {
         compute_outputvec_multi<GF2E_Element>(data, input, output,
-            num_queries, num_blocks, words_per_block);
+            num_queries, num_blocks, words_per_block, 0);
     } else {
         compute_outputvec_single<GF2E_Element>(data, input, output,
-            num_blocks, words_per_block);
+            num_blocks, words_per_block, 0);
     }
 
     //gettimeofday(&te, NULL);
@@ -408,7 +421,7 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
     dbsize_t words_per_block = params.words_per_block();
     dbsize_t num_blocks = params.num_blocks();
     // dbsize_t num_bytes = params.num_blocks() / 8;
-    // dbsize_t max_unsynchronized = params.max_unsynchronized();
+    dbsize_t max_unsynchronized = params.max_unsynchronized();
 
     // Read the number of queries
     unsigned char nq[2];
@@ -442,12 +455,18 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
 
     //struct timeval ts, te;
     //gettimeofday(&ts, NULL);
+    
+    dbsize_t starting_point = 0;
+    if (server_unsynchronized) {
+        starting_point = max_unsynchronized;
+        std::cerr << "server unsynchronized! starting at " << starting_point << std::endl;
+    }
     if (num_queries > 1) {
         compute_outputvec_multi<GF2E_Element>(data, input, output,
-            num_queries, num_blocks, words_per_block);
+            num_queries, num_blocks, words_per_block, starting_point);
     } else {
         compute_outputvec_single<GF2E_Element>(data, input, output,
-            num_blocks, words_per_block);
+            num_blocks, words_per_block, starting_point);
     }
 
     //gettimeofday(&te, NULL);
@@ -522,6 +541,7 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
             }
         }
     }
+    
 
     // Send the output vector to the client via the ostream
     for (dbsize_t k = 0; k < num_rows; k++) {

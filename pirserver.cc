@@ -937,6 +937,9 @@ int main (int argc, char ** argv)
         } else {
             // Create the PIR server
             server = new PercyServer(datastore);
+            if (port == 31337) {
+                server->set_server_unsynchronized();
+            }
         }
     #endif
     if (server == NULL) {
