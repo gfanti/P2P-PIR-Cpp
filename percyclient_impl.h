@@ -866,6 +866,8 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     }
     interpolate_results(replies, this->num_servers, num_rows, compressed_results);
     
+    
+    
     find_unsynchronized_files(this->num_servers, num_rows, compressed_results);
     
     // Free the input memory
@@ -915,9 +917,9 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
                 inpv_j = 1;
                 std::cout << "You need to work out the bottom row of V inverse for " << num_servers << " servers.\n";
         } 
-    
-        block = replies[j];
+        std::cerr << "inp_j is "<<inpv_j << std::endl;
         if (inpv_j != 0) {
+            block = replies[j];
             const GF216_Element *blockc = block;
             GF216_Element log_j = GF216_log_table[inpv_j];
             const GF216_Element *start = GF216_exp_table + log_j;
@@ -959,6 +961,7 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
         }
     }
     
+    
     for (dbsize_t i=0; i<num_rows; i++) {
         std::copy(&outputvec[WORDS_PER_BLOCK*i],&outputvec[WORDS_PER_BLOCK*(i+1)-1],compressed_results[i]);
     }
@@ -974,8 +977,12 @@ int PercyClient_RS_Sync<GF2E_Element>::checkSingletonRatio(
     GF2E_Element ratio1, ratio2;
     GF2E_Element previous_ratio = 1;
     for (dbsize_t j=0; j<4; j++) {
-        ratio1 = (compressed_results[i+1][j])*inverse_GF2E<GF216_Element>(compressed_results[i][j]);
-        ratio2 = (compressed_results[i+2][j])*inverse_GF2E<GF216_Element>(compressed_results[i+1][j]);
+        ratio1 = multiply_GF2E<GF216_Element>(compressed_results[i+1][j],inverse_GF2E<GF216_Element>(compressed_results[i][j]));
+        ratio2 = multiply_GF2E<GF216_Element>(compressed_results[i+2][j],inverse_GF2E<GF216_Element>(compressed_results[i+1][j]));
+        if (i==2) {
+            // std::cerr << "The ratios are " << ratio1 << " and " << ratio2 <<std::endl;
+            // std::cerr << "The ratio1 stuff is " << compressed_results[i+1][j] << " and " << inverse_GF2E<GF216_Element>(compressed_results[i][j]) <<std::endl;
+        }
         if (ratio1 != ratio2) {
             singleton = false;
             break;
@@ -990,7 +997,6 @@ int PercyClient_RS_Sync<GF2E_Element>::checkSingletonRatio(
     
     if (singleton && (previous_ratio != 0)) {
         singleton_idx = GF216_log_table[previous_ratio];
-        std::cerr << "singleton idx is " << singleton_idx << std::endl;
     }
     return singleton_idx;
     
@@ -1004,17 +1010,25 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
     bool done = false;
     const GF216_Element *block;
     // this->sync_error_locs.push_back(1);
+    
+    for (GF216_Element j=0; j<DEGREE; j++){
+        std::cerr << "THe bins are " << GF216_pulse_mtx_6bins[0][j] << std::endl;
+    }
+    
+    for (GF216_Element j=0; j<DEGREE; j++){
+        std::cerr << "THe 2 bins are " << GF216_pulse_mtx_6bins[1][j] << std::endl;
+    }
+    
     while (!done) {
         done = true;
         for (dbsize_t i=0; i<num_rows; i+=NUM_RATIOS) {
             // find the location of the singleton, if there is one
             int singleton_idx = checkSingletonRatio(compressed_results,i);
-            std::cerr << "Singleton index is " << singleton_idx << std::endl;
-            this->sync_error_locs.push_back(0);
             if (singleton_idx > -1) {
                 done = false;
                 
                 // update the list of nonzero db entries
+                std::cerr << "The singleton is located at index " << singleton_idx << std::endl;
                 this->sync_error_locs.push_back(singleton_idx);
                 
                 
@@ -1027,7 +1041,7 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                         const GF216_Element *blockc = block;
                         // GF216_Element log_j = GF216_log_table[inpv_j];
                         const GF216_Element *start = GF216_exp_table;
-                        GF216_Element *oc = compressed_results[j*NUM_RATIOS + k];
+                        GF216_Element *oc = compressed_results[bin*NUM_RATIOS + k];
                         GF216_Element *oc_end = oc + (WORDS_PER_BLOCK & ~3);
                         GF216_Element block_c;
                         while(oc < oc_end) {
@@ -1063,7 +1077,8 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                             }
                         }
                     }
-                }   
+                }        
+                break;
             }
         }
     }

@@ -273,8 +273,7 @@ void PercyServer::compute_outputvec_sync(
         std::cerr << "\n\nTHIS SERVER IS UNSYNCHRONIZED!\n\n";
         starting_point = max_unsynchronized;
         std::cerr << "starting point" << starting_point << "\n";
-    }
-    
+    } 
     for (dbsize_t j = 0; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
         if (j >= starting_point){
@@ -333,6 +332,7 @@ void PercyServer::compute_outputvec_sync(
                 }
             }
         }
+        // std::cerr << "sync output contains " << outputvec[j][20] << outputvec[j][21] << std::endl;
         block += words_per_block;
     }
 }
@@ -544,7 +544,6 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
         }
     }
     
-
     // Send the output vector to the client via the ostream
     for (dbsize_t k = 0; k < num_rows; k++) {
         os.write((char *) &output[k], WORDS_PER_BLOCK * sizeof(GF2E_Element));
