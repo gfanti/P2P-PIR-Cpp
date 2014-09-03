@@ -270,9 +270,7 @@ void PercyServer::compute_outputvec_sync(
     // max_unsynchronized files as zeros
     dbsize_t starting_point = 0;
     if (server_unsynchronized) {
-        std::cerr << "\n\nTHIS SERVER IS UNSYNCHRONIZED!\n\n";
         starting_point = max_unsynchronized;
-        std::cerr << "starting point" << starting_point << "\n";
     } 
     for (dbsize_t j = 0; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
@@ -461,7 +459,6 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
     dbsize_t starting_point = 0;
     if (server_unsynchronized) {
         starting_point = max_unsynchronized;
-        std::cerr << "server unsynchronized! starting at " << starting_point << std::endl;
     }
     if (num_queries > 1) {
         compute_outputvec_multi<GF2E_Element>(data, input, output,

@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <deque>
 #include "gf2e.h"
 #include "pulse.h"
 #include "percyparams.h"
@@ -917,7 +918,6 @@ void PercyClient_RS_Sync<GF2E_Element>::interpolate_results (
                 inpv_j = 1;
                 std::cout << "You need to work out the bottom row of V inverse for " << num_servers << " servers.\n";
         } 
-        std::cerr << "inp_j is "<<inpv_j << std::endl;
         if (inpv_j != 0) {
             block = replies[j];
             const GF216_Element *blockc = block;
@@ -1011,13 +1011,13 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
     const GF216_Element *block;
     // this->sync_error_locs.push_back(1);
     
-    for (GF216_Element j=0; j<DEGREE; j++){
-        std::cerr << "THe bins are " << GF216_pulse_mtx_6bins[0][j] << std::endl;
-    }
+    // for (GF216_Element j=0; j<DEGREE; j++){
+        // std::cerr << "THe bins are " << GF216_pulse_mtx_6bins[0][j] << std::endl;
+    // }
     
-    for (GF216_Element j=0; j<DEGREE; j++){
-        std::cerr << "THe 2 bins are " << GF216_pulse_mtx_6bins[1][j] << std::endl;
-    }
+    // for (GF216_Element j=0; j<DEGREE; j++){
+        // std::cerr << "THe 2 bins are " << GF216_pulse_mtx_6bins[1][j] << std::endl;
+    // }
     
     while (!done) {
         done = true;
@@ -1031,10 +1031,21 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                 std::cerr << "The singleton is located at index " << singleton_idx << std::endl;
                 this->sync_error_locs.push_back(singleton_idx);
                 
+                // construct the list of indices to remove from the compressed vector
+                deque<GF216_Element> bins;
+                for (int z=0; z<DEGREE; z++) {
+                    if (GF216_pulse_mtx_6bins[singleton_idx][z] == i/3) {
+                        bins.push_back(GF216_pulse_mtx_6bins[singleton_idx][z]);
+                    }
+                    else {
+                        bins.push_front(GF216_pulse_mtx_6bins[singleton_idx][z]);
+                    }
+                }
                 
                 // remove the singleton from the results vector
                 for (GF216_Element j=0; j<DEGREE; j++){
-                    GF216_Element bin = GF216_pulse_mtx_6bins[singleton_idx][j];
+                    GF216_Element bin = bins.front();
+                    bins.pop_front();
                     for (GF216_Element k=0; k<NUM_RATIOS; k++) {
                         // subtract the singleton from compressed results
                         block = compressed_results[i + k];
@@ -1077,8 +1088,7 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                             }
                         }
                     }
-                }        
-                break;
+                }     
             }
         }
     }
