@@ -275,60 +275,62 @@ void PercyServer::compute_outputvec_sync(
         std::cerr << "starting point" << starting_point << "\n";
     }
     
-    for (dbsize_t j = starting_point; j < num_blocks; ++j) {
+    for (dbsize_t j = 0; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
-        for (GF216_Element k = 0; k < DEGREE; ++k) {
-            // Which bin should we put this in?
-            GF216_Element bin = GF216_pulse_mtx_6bins[j][k];
-            
-            for (GF216_Element m = 0; m < NUM_RATIOS; ++m) {
-                // Multiply the element by the product of alpha^(m*n)*q[j], where
-                //      alpha is a primitive element of GF2^16
-                GF216_Element inpv_j = multiply_GF2E( q_x,
-                                        GF216_exp_table[multiply_GF2E(m,(GF216_Element) j)]);
-                if (inpv_j != 0) {
-                    // Multiply the next entire block by j, and then xor it with the current results
-                    // we simply need to choose which outputvec we're going to add it to.
-                    const GF216_Element *blockc = block;
-                    GF216_Element log_j = GF216_log_table[inpv_j];
-                    const GF216_Element *start = GF216_exp_table + log_j;
-                    GF216_Element *oc = &outputvec[bin][0];
-                    GF216_Element *oc_end = oc + (words_per_block & ~3);
-                    GF216_Element block_c;
-                    while(oc < oc_end) {
-                        uint64_t accum = 0;
-                        block_c = *(blockc++);
-                        if (block_c != 0) {
-                            GF216_Element log_c = GF216_log_table[block_c];
-                            accum |= (uint64_t) start[log_c];
+        if (j >= starting_point){
+            for (GF216_Element k = 0; k < DEGREE; ++k) {
+                // Which bin should we put this in?
+                GF216_Element bin = GF216_pulse_mtx_6bins[j][k];
+                
+                for (GF216_Element m = 0; m < NUM_RATIOS; ++m) {
+                    // Multiply the element by the product of alpha^(m*n)*q[j], where
+                    //      alpha is a primitive element of GF2^16
+                    GF216_Element inpv_j = multiply_GF2E( q_x,
+                                            GF216_exp_table[multiply_GF2E(m,(GF216_Element) j)]);
+                    if (inpv_j != 0) {
+                        // Multiply the next entire block by j, and then xor it with the current results
+                        // we simply need to choose which outputvec we're going to add it to.
+                        const GF216_Element *blockc = block;
+                        GF216_Element log_j = GF216_log_table[inpv_j];
+                        const GF216_Element *start = GF216_exp_table + log_j;
+                        GF216_Element *oc = &outputvec[bin*NUM_RATIOS+m][0];
+                        GF216_Element *oc_end = oc + (words_per_block & ~3);
+                        GF216_Element block_c;
+                        while(oc < oc_end) {
+                            uint64_t accum = 0;
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c];
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 16;
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 32;
+                            }
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                accum |= (uint64_t) start[log_c] << 48;
+                            }
+                            *((uint64_t *) oc) ^= accum;
+                            oc+=4;
                         }
-                        block_c = *(blockc++);
-                        if (block_c != 0) {
-                            GF216_Element log_c = GF216_log_table[block_c];
-                            accum |= (uint64_t) start[log_c] << 16;
+                        for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
+                            block_c = *(blockc++);
+                            if (block_c != 0) {
+                                GF216_Element log_c = GF216_log_table[block_c];
+                                *oc ^= start[log_c];
+                            }
                         }
-                        block_c = *(blockc++);
-                        if (block_c != 0) {
-                            GF216_Element log_c = GF216_log_table[block_c];
-                            accum |= (uint64_t) start[log_c] << 32;
-                        }
-                        block_c = *(blockc++);
-                        if (block_c != 0) {
-                            GF216_Element log_c = GF216_log_table[block_c];
-                            accum |= (uint64_t) start[log_c] << 48;
-                        }
-                        *((uint64_t *) oc) ^= accum;
-                        oc+=4;
                     }
-                    for (dbsize_t c = 0; c < (words_per_block & 3); ++c, ++oc) {
-                        block_c = *(blockc++);
-                        if (block_c != 0) {
-                            GF216_Element log_c = GF216_log_table[block_c];
-                            *oc ^= start[log_c];
-                        }
-                    }
+                
                 }
-            
             }
         }
         block += words_per_block;
@@ -510,7 +512,7 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     dbsize_t expansion_factor = params.expansion_factor();
     
     // How many rows do you want to consider?
-    dbsize_t num_rows = max_unsynchronized * expansion_factor * 3;
+    dbsize_t num_rows = 2 * max_unsynchronized * expansion_factor * NUM_RATIOS;
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
     // output will have multiple results (one for each bin) 

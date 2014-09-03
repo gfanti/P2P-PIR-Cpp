@@ -141,7 +141,7 @@ static void genshares_GF2E(nservers_t t, nservers_t l,
     delete[] coeffs;
 }
 
-// Swap the query polynomials of unsynchronized files
+// Swap the query polynomials of unsynchronized files (this actually just zeroes out the appropriate entries)
 template <typename GF2E_Element>
 static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *values, 
     dbsize_t num_blocks, const std::vector<dbsize_t> &sync_error_locs) {
@@ -149,7 +149,6 @@ static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *val
     for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
         bool zeroed = true;
         dbsize_t sync_idx = *it;
-        std::cerr << "Unsynchronized val: "<<sync_idx << std::endl;
         for (nservers_t j = 0; j < num_servers; j++) {
             // check if the appropriate values of values is nonzero
             if (values[(sync_idx * num_servers) + j] != 0) {
@@ -187,12 +186,12 @@ static void swap_symbols(nservers_t t, nservers_t num_servers, GF2E_Element *val
     }
     
     // Sanity check
-    for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
-        dbsize_t sync_idx = *it;
-        for (nservers_t j = 0; j < num_servers; j++) {
-            std::cerr << "Printing mis-synched random values: " << values[(num_blocks + sync_idx) * num_servers + j] << std::endl;
-        }
-    }
+    // for (std::vector<dbsize_t>::const_iterator it = sync_error_locs.begin(); it != sync_error_locs.end(); ++it) {
+        // dbsize_t sync_idx = *it;
+        // for (nservers_t j = 0; j < num_servers; j++) {
+            // std::cerr << "Printing mis-synched random values: " << values[(num_blocks + sync_idx) * num_servers + j] << std::endl;
+        // }
+    // }
     
 }
 
@@ -843,7 +842,7 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     dbsize_t max_unsynchronized = this->params.max_unsynchronized();
     dbsize_t expansion_factor = this->params.expansion_factor();
     
-    dbsize_t num_rows = 3 * expansion_factor * max_unsynchronized;
+    dbsize_t num_rows = 2 * max_unsynchronized * expansion_factor * NUM_RATIOS;
     
     
     // For each query, read the input vector, which is a sequence of
@@ -1004,15 +1003,14 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
     // do some PULSE decoding
     bool done = false;
     const GF216_Element *block;
-    this->sync_error_locs.push_back(0);
-    this->sync_error_locs.push_back(1);
+    // this->sync_error_locs.push_back(1);
     while (!done) {
         done = true;
-        for (dbsize_t i=0; i<num_rows; i+=3) {
+        for (dbsize_t i=0; i<num_rows; i+=NUM_RATIOS) {
             // find the location of the singleton, if there is one
             int singleton_idx = checkSingletonRatio(compressed_results,i);
             std::cerr << "Singleton index is " << singleton_idx << std::endl;
-            
+            this->sync_error_locs.push_back(0);
             if (singleton_idx > -1) {
                 done = false;
                 

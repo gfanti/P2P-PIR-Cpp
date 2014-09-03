@@ -262,7 +262,7 @@ case $METHOD in
         WORDS_PER_BLOCK=1024
         WORD_SIZE=16
         MODE="r"
-        EXPANSION_FACTOR=2
+        EXPANSION_FACTOR=3
         SERVER_FLAGS="$SERVER_FLAGS"
         CLIENT_FLAGS="$CLIENT_FLAGS" ;;
     gf216l )

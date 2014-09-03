@@ -69,9 +69,8 @@ bool PercyServer::handle_request(PercyServerParams &params, std::istream &is,
             set_synchronized();
             return handle_sync_request_RS_Sync<GF216_Element>(params, is, os);
         }
-        else {
-            return handle_request_RS_Sync<GF216_Element>(params, is, os);
-        }
+        // Then it can handle the true PIR request
+        return handle_request_RS_Sync<GF216_Element>(params, is, os);
     }
     // else if (params.get_mode() == MODE_PULSE_SYNC) {
         // return handle_request_PULSE_Sync(params, is, os);
