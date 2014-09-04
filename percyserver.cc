@@ -20,6 +20,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -497,19 +498,16 @@ bool PercyServer::handle_request_Chor(PercyServerParams &params, std::istream &i
     }
 }
 
-
-template <typename GF2E_Element>
-void PercyServer::tolerate_unsynchronized(PercyServerParams &params)
-{ 
-    synchronized = false; 
-    compute_hashes(params);
-}
-
-void PercyServer::compute_hashes(PercyServerParams &params)
-{  
-    // int parity_symbols = 2 * params.max_unsynchronized(); // the number of parity bits we want to obtain 
+// Tell the server that it should hold unsynchronized files
+void PercyServer::set_server_unsynchronized(PercyServerParams &params) {
+    server_unsynchronized = true; 
     
-    // compute the parity bits using a reed-solomon code
+    // decide which files will be unsynchronized, and print them out
+    for (dbsize_t i=0; i<params.max_unsynchronized(); i++) {
+        // pick a random number in num_blocks
+        dbsize_t idx = std::rand() % params.num_blocks();
+        unsynchronized_files.push_back(idx);
+    }
 }
 
 void PercyServer::compute_one(ZZ_p *value, bool hybrid_protection,

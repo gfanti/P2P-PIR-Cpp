@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <array>
+#include <algorithm>
 #include <typeinfo>
 #include "percyparams.h"
 #include "gf2e.h"
@@ -34,14 +35,14 @@
 template <typename GF2E_Element>
 inline void compute_outputvec_single(
         const GF2E_Element *data, GF2E_Element *inputvec, GF2E_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point);
+        dbsize_t num_blocks, dbsize_t words_per_block, const vector<dbsize_t> &unsynchronized_files);
 
 template <>
 inline void compute_outputvec_single<GF28_Element>(
         const GF28_Element *data, GF28_Element *inputvec, GF28_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
+        dbsize_t num_blocks, dbsize_t words_per_block, const vector<dbsize_t> &unsynchronized_files) {
     const GF28_Element *block = data;
-    for (unsigned int j = starting_point; j < num_blocks; ++j) {
+    for (unsigned int j = 0; j < num_blocks; ++j) {
         const GF28_Element *multrow = GF28_mult_table[inputvec[j]];
         const GF28_Element *blockc = block;
         GF28_Element *oc = outputvec;
@@ -68,10 +69,10 @@ inline void compute_outputvec_single<GF28_Element>(
 template <>
 inline void compute_outputvec_single<GF216_Element>(
         const GF216_Element *data, GF216_Element *inputvec, GF216_Element *outputvec,
-        dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
+        dbsize_t num_blocks, dbsize_t words_per_block, const vector<dbsize_t> &unsynchronized_files) {
     const GF216_Element *block = data;
     for (dbsize_t j = 0; j < num_blocks; ++j) {
-        if (j >= starting_point){
+        if (std::find(unsynchronized_files.begin(), unsynchronized_files.end(), j)==unsynchronized_files.end()){
             GF216_Element inpv_j = inputvec[j];
             if (inpv_j != 0) {
                 const GF216_Element *blockc = block;
@@ -123,13 +124,13 @@ template <typename GF2E_Element>
 inline void compute_outputvec_multi(
         const GF2E_Element *data, GF2E_Element *inputvec, GF2E_Element *outputvec,
         nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block,
-        dbsize_t starting_point);
+        const vector<dbsize_t> &unsynchronized_files);
 
 template <>
 inline void compute_outputvec_multi<GF28_Element>(
         const GF28_Element *data, GF28_Element *inputvec, GF28_Element *outputvec,
         nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block, 
-        dbsize_t starting_point) {
+        const vector<dbsize_t> &unsynchronized_files) {
     if (num_queries == 2) {
 	const GF28_Element *block = data;
 	const GF28_Element *inp1 = inputvec;
@@ -246,10 +247,10 @@ inline void compute_outputvec_multi<GF28_Element>(
 template <>
 inline void compute_outputvec_multi<GF216_Element>(
         const GF216_Element *data, GF216_Element *inputvec, GF216_Element *outputvec,
-        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block, dbsize_t starting_point) {
+        nqueries_t num_queries, dbsize_t num_blocks, dbsize_t words_per_block, const vector<dbsize_t> &unsynchronized_files) {
     for (nqueries_t q = 0; q < num_queries; q++) {
         compute_outputvec_single<GF216_Element>(data, inputvec + q*num_blocks, 
-                outputvec + q*words_per_block, num_blocks, words_per_block, starting_point);
+                outputvec + q*words_per_block, num_blocks, words_per_block, unsynchronized_files);
     }
 }
 
@@ -268,13 +269,9 @@ void PercyServer::compute_outputvec_sync(
     
     // If the server is supposed to be unsynchronized, just treat the first 
     // max_unsynchronized files as zeros
-    dbsize_t starting_point = 0;
-    if (server_unsynchronized) {
-        starting_point = max_unsynchronized;
-    } 
     for (dbsize_t j = 0; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
-        if (j >= starting_point){
+        if (std::find(unsynchronized_files.begin(), unsynchronized_files.end(), j)==unsynchronized_files.end()){
             for (GF216_Element k = 0; k < DEGREE; ++k) {
                 // Which bin should we put this in?
                 GF216_Element bin = GF216_pulse_mtx_6bins[j][k];
@@ -381,10 +378,10 @@ bool PercyServer::handle_request_GF2E(PercyServerParams &params
     //gettimeofday(&ts, NULL);
     if (num_queries > 1) {
         compute_outputvec_multi<GF2E_Element>(data, input, output,
-            num_queries, num_blocks, words_per_block, 0);
+            num_queries, num_blocks, words_per_block, unsynchronized_files);
     } else {
         compute_outputvec_single<GF2E_Element>(data, input, output,
-            num_blocks, words_per_block, 0);
+            num_blocks, words_per_block, unsynchronized_files);
     }
 
     //gettimeofday(&te, NULL);
@@ -462,10 +459,10 @@ bool PercyServer::handle_request_RS_Sync(PercyServerParams &params, std::istream
     }
     if (num_queries > 1) {
         compute_outputvec_multi<GF2E_Element>(data, input, output,
-            num_queries, num_blocks, words_per_block, starting_point);
+            num_queries, num_blocks, words_per_block, unsynchronized_files);
     } else {
         compute_outputvec_single<GF2E_Element>(data, input, output,
-            num_blocks, words_per_block, starting_point);
+            num_blocks, words_per_block, unsynchronized_files);
     }
 
     //gettimeofday(&te, NULL);

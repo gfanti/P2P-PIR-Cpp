@@ -50,11 +50,7 @@ public:
     void set_synchronized() { synchronized = true; }
     
     // Tell the server that it should hold unsynchronized files
-    void set_server_unsynchronized() { server_unsynchronized = true; }
-    
-    // Tell the server to tolerate unsynchronized databases (and hence compute the content hashes)
-    template <typename GF2E_Element>
-    void tolerate_unsynchronized(PercyServerParams &params);
+    void set_server_unsynchronized(PercyServerParams &params); 
     
     // Handle a request.
     virtual bool handle_request(PercyServerParams &params, std::istream &is,
@@ -90,6 +86,7 @@ private:
     bool byzantine;
     bool synchronized; // tells whether this server has undergone the synchronization process
     bool server_unsynchronized; // flags whether this server is the one that contains unsynchronized files
+    vector<dbsize_t> unsynchronized_files; // lists the indices of unsynchronized files in the database
     void compute_one(ZZ_p *value, bool hybrid_protection,
         dbsize_t num_blocks, nqueries_t num_queries,
         const vec_ZZ_p *inputvector, dbsize_t c);
