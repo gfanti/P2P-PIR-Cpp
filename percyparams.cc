@@ -51,7 +51,7 @@ PercyParams::PercyParams()
     this->_words_per_block = 1;
     this->_num_blocks = 1;
     this->_max_unsynchronized = 0;
-    this->_expansion_factor = 1;
+    this->_num_bins = 1;
     this->modulus = 257;
     this->mode = MODE_ZZ_P;
     this->pcparams_filename = NULL;
@@ -62,7 +62,7 @@ PercyParams::PercyParams()
 }
 
 PercyParams::PercyParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	dbsize_t expansion_factor, nservers_t tau, ZZ modulus, PercyMode mode,
+	dbsize_t num_bins, nservers_t tau, ZZ modulus, PercyMode mode,
 	char *pcparams_file, bool do_spir)
 {
     this->version = PERCY_VERSION;
@@ -72,7 +72,7 @@ PercyParams::PercyParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t
     this->_words_per_block = words_per_block;
     this->_num_blocks = num_blocks;
     this->_max_unsynchronized = max_unsynchronized;
-    this->_expansion_factor = expansion_factor;
+    this->_num_bins = num_bins;
     this->modulus = modulus;
     this->mode = mode;
     this->pcparams_filename = pcparams_file;
@@ -109,7 +109,7 @@ ostream& operator<<(ostream& os, const PercyParams &params)
 
     // Output the max_unsynchronized value
     PERCY_WRITE_LE_DBSIZE(os, params._max_unsynchronized);
-    PERCY_WRITE_LE_DBSIZE(os, params._expansion_factor);
+    PERCY_WRITE_LE_DBSIZE(os, params._num_bins);
     
     // Output the modulus
     percy_write_ZZ(os, params.modulus);
@@ -162,7 +162,7 @@ istream& operator>>(istream& is, PercyParams &params)
     PERCY_READ_LE_DBSIZE(is, params._max_unsynchronized);
 
     // Input the expansion factor value
-    PERCY_READ_LE_DBSIZE(is, params._expansion_factor);
+    PERCY_READ_LE_DBSIZE(is, params._num_bins);
     
     // Input the modulus
     percy_read_ZZ(is, params.modulus);
@@ -183,13 +183,13 @@ istream& operator>>(istream& is, PercyParams &params)
 }
 
 PercyClientParams::PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, 
-        dbsize_t max_unsynchronized, dbsize_t expansion_factor, nservers_t tau, ZZ p, ZZ q)
+        dbsize_t max_unsynchronized, dbsize_t num_bins, nservers_t tau, ZZ p, ZZ q)
 {
-    init_hybrid(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, p, q);
+    init_hybrid(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, p, q);
 }
 
 void PercyClientParams::init_hybrid(dbsize_t words_per_block, dbsize_t num_blocks, 
-        dbsize_t max_unsynchronized, dbsize_t expansion_factor, nservers_t tau, ZZ p, ZZ q)
+        dbsize_t max_unsynchronized, dbsize_t num_bins, nservers_t tau, ZZ p, ZZ q)
 {
     this->version = PERCY_VERSION;
     this->hybrid_protection = true;
@@ -197,7 +197,7 @@ void PercyClientParams::init_hybrid(dbsize_t words_per_block, dbsize_t num_block
     this->_words_per_block = words_per_block;
     this->_num_blocks = num_blocks;
     this->_max_unsynchronized = max_unsynchronized;
-    this->_expansion_factor = expansion_factor;
+    this->_num_bins = num_bins;
     ZZ modulus;
     modulus = p * q;
     this->modulus = modulus;
@@ -235,7 +235,7 @@ void PercyParams::create_ZZ_pContexts()
 }
 
 PercyClientParams::PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, 
-        dbsize_t max_unsynchronized, dbsize_t expansion_factor, nservers_t tau, unsigned long modulus_bits)
+        dbsize_t max_unsynchronized, dbsize_t num_bins, nservers_t tau, unsigned long modulus_bits)
 {
     // Pick the sizes for the primes
     unsigned long qsize = modulus_bits / 2;
@@ -254,5 +254,5 @@ PercyClientParams::PercyClientParams(dbsize_t words_per_block, dbsize_t num_bloc
     if (qsize >= 2) SetBit(qbase, qsize-2);
     NextPrime(q, qbase);
 
-    init_hybrid(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, p, q);
+    init_hybrid(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, p, q);
 }

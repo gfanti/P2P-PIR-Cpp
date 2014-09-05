@@ -91,7 +91,7 @@ void print_usage_options () {
     std::cerr << "   -w WORDSIZE            use a word size of WORDSIZE bytes (default: 8)." << std::endl;
     std::cerr << "   -b BLOCKSIZE           use a block size of BLOCKSIZE bytes (default: sqrt(DBBYTES*WORDSIZE)/8)." << std::endl;
     std::cerr << "   -u MAX_UNSYNCHRONIZED  specifies the maximum number of db files that can be unsynchronized." << std::endl;
-    std::cerr << "   -e EXPANSION_FACTOR    specifies the expansion factor in the number of bins to produce for synchronization." << std::endl;
+    std::cerr << "   -e NUM BINS            specifies the number of bins to produce for synchronization." << std::endl;
     std::cerr << "   -t, -tau               specify that database is tau independent." << std::endl;
     std::cerr << "   -S, --SID SERVERID     use the specified SID." << std::endl;
     std::cerr << "   -p, --port PORTNO      listen for connections on the specified port." << std::endl;
@@ -223,7 +223,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
     dbsize_t w = 0;
     dbsize_t b = 0;
     dbsize_t max_unsynchronized = 0; //max number of unsynchronized records in the database
-    dbsize_t expansion_factor = 1; //max number of unsynchronized records in the database
+    dbsize_t num_bins = 1; //max number of unsynchronized records in the database
 
     // Threading parameters
     dbsize_t num_threads = 0;
@@ -247,7 +247,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
                 max_unsynchronized = strtoull(optarg, NULL, 10);
                 break;
             case 'e':
-                expansion_factor = strtoull(optarg, NULL, 10);
+                num_bins = strtoull(optarg, NULL, 10);
                 break;
             case 't':
                 is_tau = true;
@@ -545,7 +545,7 @@ PercyServerParams * init_params(ParsedArgs& pargs, bool checkdb = true)
 
     // Create the PercyServerParams object.
     PercyServerParams * params = new PercyServerParams(
-	    words_per_block, num_blocks, max_unsynchronized, expansion_factor, is_tau, modulus, mode, 
+	    words_per_block, num_blocks, max_unsynchronized, num_bins, is_tau, modulus, mode, 
 	    be_byzantine, pcparams_file, do_spir, sid,
 	    num_threads, ttype, tmethod);
 

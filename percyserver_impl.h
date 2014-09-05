@@ -524,10 +524,10 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     // dbsize_t num_bytes = params.num_blocks() / 8;
     dbsize_t num_blocks = params.num_blocks();
     dbsize_t max_unsynchronized = params.max_unsynchronized();
-    dbsize_t expansion_factor = params.expansion_factor();
+    dbsize_t num_bins = params.num_bins();
     
     // How many rows do you want to consider?
-    dbsize_t num_rows = max_unsynchronized * expansion_factor * NUM_RATIOS;
+    dbsize_t num_rows = num_bins * NUM_RATIOS;
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
     // output will have multiple results (one for each bin) 

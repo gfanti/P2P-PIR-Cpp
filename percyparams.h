@@ -50,7 +50,7 @@ public:
 
     // Use the given modulus directly; only encryption will be possible
     PercyParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, ZZ modulus, PercyMode mode,
+	    dbsize_t num_bins, nservers_t tau, ZZ modulus, PercyMode mode,
 	    char *pcparams_file = NULL, bool do_spir = false);
 
     unsigned long modulus_bytes() const {
@@ -73,8 +73,8 @@ public:
     dbsize_t max_unsynchronized() const {
         return _max_unsynchronized;
     }
-    dbsize_t expansion_factor() const {
-        return _expansion_factor;
+    dbsize_t num_bins() const {
+        return _num_bins;
     }
     dbsize_t bytes_per_block() const {
         return bytes_per_word() * _words_per_block;
@@ -132,7 +132,7 @@ protected:
     bool do_spir;
     nservers_t _tau;
     dbsize_t _words_per_block, _num_blocks, _max_unsynchronized;
-    dbsize_t _expansion_factor;
+    dbsize_t _num_bins;
     ZZ_pContext modctx, modsqctx;
     // Paillier public key
     ZZ modulus;
@@ -148,18 +148,18 @@ class PercyClientParams : public PercyParams {
 public:
     // Use the given modulus directly; only encryption will be possible
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, ZZ modulus, PercyMode mode, 
+	    dbsize_t num_bins, nservers_t tau, ZZ modulus, PercyMode mode, 
         char *pcparams_file=NULL, bool do_spir=false)
-        : PercyParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, modulus, mode, 
+        : PercyParams(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, modulus, mode, 
 		pcparams_file, do_spir) { }
 
     // Generate a new public/private key pair of the given keysize
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, unsigned long modulus_bits);
+	    dbsize_t num_bins, nservers_t tau, unsigned long modulus_bits);
 
     // Use the given factors to generate a public/private key pair
     PercyClientParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, ZZ p, ZZ q);// : PercyParams(words_per_block, num_blocks, tau, p, q) {}
+	    dbsize_t num_bins, nservers_t tau, ZZ p, ZZ q);// : PercyParams(words_per_block, num_blocks, tau, p, q) {}
 
     // Decrypt the given ciphertext.  This routine will change the
     // current ZZ_p context to modctx.
@@ -174,7 +174,7 @@ public:
     ZZ get_p2() const { return p2; }
 protected:
     void init_hybrid(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, ZZ p, ZZ q);
+	    dbsize_t num_bins, nservers_t tau, ZZ p, ZZ q);
     // Paillier private key
     ZZ lambda;
     ZZ_p mu;  // mod modulus
@@ -192,11 +192,11 @@ class PercyServerParams : public PercyParams {
 public:
     // Use the given modulus directly; only encryption will be possible
     PercyServerParams(dbsize_t words_per_block, dbsize_t num_blocks, dbsize_t max_unsynchronized,
-	    dbsize_t expansion_factor, nservers_t tau, ZZ modulus, PercyMode mode, bool be_byzantine,
+	    dbsize_t num_bins, nservers_t tau, ZZ modulus, PercyMode mode, bool be_byzantine,
 	    char *pcparams_filename, bool do_spir, nservers_t sid,
 	    dbsize_t num_threads = 0, PercyThreadingType ttype = THREADING_ROWS,
 	    PercyThreadMethod tmethod = THREAD_METHOD_PTHREAD) :
-	PercyParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, modulus, mode, 
+	PercyParams(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, modulus, mode, 
 		pcparams_filename, do_spir), 
 	sid(sid),
 	be_byzantine(be_byzantine),
@@ -211,7 +211,7 @@ public:
             && (this->words_per_block() == other.words_per_block())
             && (this->num_blocks() == other.num_blocks())
             && (this->max_unsynchronized() == other.max_unsynchronized())
-            && (this->expansion_factor() == other.expansion_factor())
+            && (this->num_bins() == other.num_bins())
             && (this->bytes_per_word() == other.bytes_per_word())
             && (this->tau() == other.tau())
             && (this->spir() == other.spir())

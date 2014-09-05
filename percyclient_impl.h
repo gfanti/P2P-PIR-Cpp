@@ -841,9 +841,9 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     nservers_t res = 0;
     dbsize_t words_per_block = this->params.words_per_block();
     dbsize_t max_unsynchronized = this->params.max_unsynchronized();
-    float expansion_factor = this->params.expansion_factor();
+    dbsize_t num_bins = this->params.num_bins();
     
-    dbsize_t num_rows = (dbsize_t) max_unsynchronized * expansion_factor * NUM_RATIOS;
+    dbsize_t num_rows = num_bins * NUM_RATIOS;
     
     
     // For each query, read the input vector, which is a sequence of

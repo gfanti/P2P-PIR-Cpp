@@ -210,7 +210,7 @@ nqueries_t worker_first_query (const PercyServerParams &params, dbsize_t workeri
 PercyServerParams worker_params (const PercyServerParams &params, dbsize_t workerid)
 {
     return PercyServerParams(worker_words_per_block(params, workerid),
-	    worker_num_blocks(params, workerid), params.max_unsynchronized(), params.expansion_factor(), params.tau(), params.get_modulus(), 
+	    worker_num_blocks(params, workerid), params.max_unsynchronized(), params.num_bins(), params.tau(), params.get_modulus(), 
 	    params.get_mode(), params.is_byzantine(), NULL, false, params.get_sid());
 }
 

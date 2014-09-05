@@ -251,7 +251,7 @@ int main(int argc, char **argv)
     dbsize_t num_blocks = strtoull(argv[optind++], NULL, 10);
     dbsize_t words_per_block = strtoull(argv[optind++], NULL, 10);
     dbsize_t max_unsynchronized = strtoull(argv[optind++], NULL, 10);
-    dbsize_t expansion_factor = strtoull(argv[optind++], NULL, 10);
+    dbsize_t num_bins = strtoull(argv[optind++], NULL, 10);
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
 	
     
@@ -498,11 +498,11 @@ int main(int argc, char **argv)
     PercyClientParams *clientparams = NULL;
     if (do_hybrid)
     {
-        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, p1, p2);
+        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, p1, p2);
     }
     else
     {
-        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, expansion_factor, tau, modulus, mode, pcparams_file, do_spir);
+        clientparams = new PercyClientParams(words_per_block, num_blocks, max_unsynchronized, num_bins, tau, modulus, mode, pcparams_file, do_spir);
     }
     
     
