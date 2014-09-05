@@ -1031,14 +1031,26 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                         case 4:
                             bin = GF216_pulse_mtx_4bins[singleton_idx][z];
                             break;
+                        case 5:
+                            bin = GF216_pulse_mtx_5bins[singleton_idx][z];
+                            break;
                         case 6: 
                             bin = GF216_pulse_mtx_6bins[singleton_idx][z];
+                            break;
+                        case 7:
+                            bin = GF216_pulse_mtx_7bins[singleton_idx][z];
                             break;
                         case 8: 
                             bin = GF216_pulse_mtx_8bins[singleton_idx][z];
                             break;
+                        case 9:
+                            bin = GF216_pulse_mtx_9bins[singleton_idx][z];
+                            break;
                         case 10: 
                             bin = GF216_pulse_mtx_10bins[singleton_idx][z];
+                            break;
+                        case 11:
+                            bin = GF216_pulse_mtx_11bins[singleton_idx][z];
                             break;
                         case 12: 
                             bin = GF216_pulse_mtx_12bins[singleton_idx][z];

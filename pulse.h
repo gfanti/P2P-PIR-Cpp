@@ -33,9 +33,13 @@ const GF216_Element DEGREE = 3;
 /* Use the same representation as AES */
 
 extern const GF216_Element GF216_pulse_mtx_4bins[10000][3];
+extern const GF216_Element GF216_pulse_mtx_5bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_6bins[10000][3];
+extern const GF216_Element GF216_pulse_mtx_7bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_8bins[10000][3];
+extern const GF216_Element GF216_pulse_mtx_9bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_10bins[10000][3];
+extern const GF216_Element GF216_pulse_mtx_11bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_12bins[10000][3];
 
 /* The interpolation matrices for V^-1 */

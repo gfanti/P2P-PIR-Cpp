@@ -507,6 +507,10 @@ void PercyServer::set_server_unsynchronized(PercyServerParams &params) {
         // pick a random number in num_blocks
         dbsize_t idx = std::rand() % params.num_blocks();
         unsynchronized_files.push_back(idx);
+        std::cerr << "Unsynchronized file at " << idx << std::endl;
+        for (dbsize_t j=0; j<DEGREE; j++) {
+            std::cerr << idx << " binned to " << GF216_pulse_mtx_6bins[idx][j] << std::endl;
+        }
     }
 }
 

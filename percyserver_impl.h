@@ -279,14 +279,26 @@ void PercyServer::compute_outputvec_sync(
                     case 4:
                         bin = GF216_pulse_mtx_4bins[j][k];
                         break;
+                    case 5:
+                        bin = GF216_pulse_mtx_5bins[j][k];
+                        break;
                     case 6: 
                         bin = GF216_pulse_mtx_6bins[j][k];
+                        break;
+                    case 7:
+                        bin = GF216_pulse_mtx_7bins[j][k];
                         break;
                     case 8: 
                         bin = GF216_pulse_mtx_8bins[j][k];
                         break;
+                    case 9:
+                        bin = GF216_pulse_mtx_9bins[j][k];
+                        break;
                     case 10: 
                         bin = GF216_pulse_mtx_10bins[j][k];
+                        break;
+                    case 11:
+                        bin = GF216_pulse_mtx_11bins[j][k];
                         break;
                     case 12: 
                         bin = GF216_pulse_mtx_12bins[j][k];
