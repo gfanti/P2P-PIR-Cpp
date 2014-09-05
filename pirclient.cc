@@ -578,6 +578,7 @@ int main(int argc, char **argv)
 
     srand(time(NULL));
 
+    
     // Get the value of h (GF: What is h?)
     nservers_t h = (nservers_t)(floor(sqrt((t+clientparams->tau())*k)))+1;
     const char *envh = getenv("PIRC_H");

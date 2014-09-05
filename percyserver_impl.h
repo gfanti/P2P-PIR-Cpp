@@ -273,8 +273,29 @@ void PercyServer::compute_outputvec_sync(
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
         if (std::find(unsynchronized_files.begin(), unsynchronized_files.end(), j)==unsynchronized_files.end()){
             for (GF216_Element k = 0; k < DEGREE; ++k) {
+                GF216_Element bin;
                 // Which bin should we put this in?
-                GF216_Element bin = GF216_pulse_mtx_6bins[j][k];
+                switch (num_rows/NUM_RATIOS) {
+                    case 4:
+                        bin = GF216_pulse_mtx_4bins[j][k];
+                        break;
+                    case 6: 
+                        bin = GF216_pulse_mtx_6bins[j][k];
+                        break;
+                    case 8: 
+                        bin = GF216_pulse_mtx_8bins[j][k];
+                        break;
+                    case 10: 
+                        bin = GF216_pulse_mtx_10bins[j][k];
+                        break;
+                    case 12: 
+                        bin = GF216_pulse_mtx_12bins[j][k];
+                        break;
+                    default:
+                        std::cerr << "Cannot compute: This number of bins has not been considered yet!";
+                        break;
+                }
+                
                 
                 for (GF216_Element m = 0; m < NUM_RATIOS; ++m) {
                     // Multiply the element by the product of alpha^(m*n)*q[j], where
@@ -506,7 +527,7 @@ bool PercyServer::handle_sync_request_RS_Sync(PercyServerParams &params, std::is
     dbsize_t expansion_factor = params.expansion_factor();
     
     // How many rows do you want to consider?
-    dbsize_t num_rows = 2 * max_unsynchronized * expansion_factor * NUM_RATIOS;
+    dbsize_t num_rows = max_unsynchronized * expansion_factor * NUM_RATIOS;
     // For each query, read the input vector, which is a sequence of
     // num_blocks entries, each of length sizeof(GF2E_Element) bytes
     // output will have multiple results (one for each bin) 

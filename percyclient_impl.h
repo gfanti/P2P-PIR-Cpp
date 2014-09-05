@@ -841,9 +841,9 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
     nservers_t res = 0;
     dbsize_t words_per_block = this->params.words_per_block();
     dbsize_t max_unsynchronized = this->params.max_unsynchronized();
-    dbsize_t expansion_factor = this->params.expansion_factor();
+    float expansion_factor = this->params.expansion_factor();
     
-    dbsize_t num_rows = 2 * max_unsynchronized * expansion_factor * NUM_RATIOS;
+    dbsize_t num_rows = (dbsize_t) max_unsynchronized * expansion_factor * NUM_RATIOS;
     
     
     // For each query, read the input vector, which is a sequence of
@@ -1011,14 +1011,6 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
     const GF216_Element *block;
     // this->sync_error_locs.push_back(1);
     
-    // for (GF216_Element j=0; j<DEGREE; j++){
-        // std::cerr << "THe bins are " << GF216_pulse_mtx_6bins[0][j] << std::endl;
-    // }
-    
-    // for (GF216_Element j=0; j<DEGREE; j++){
-        // std::cerr << "THe 2 bins are " << GF216_pulse_mtx_6bins[1][j] << std::endl;
-    // }
-    
     while (!done) {
         done = true;
         for (dbsize_t i=0; i<num_rows; i+=NUM_RATIOS) {
@@ -1034,11 +1026,32 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                 // construct the list of indices to remove from the compressed vector
                 deque<GF216_Element> bins;
                 for (int z=0; z<DEGREE; z++) {
-                    if (GF216_pulse_mtx_6bins[singleton_idx][z] == i/3) {
-                        bins.push_back(GF216_pulse_mtx_6bins[singleton_idx][z]);
+                    GF216_Element bin;
+                    switch (num_rows/NUM_RATIOS) {
+                        case 4:
+                            bin = GF216_pulse_mtx_4bins[singleton_idx][z];
+                            break;
+                        case 6: 
+                            bin = GF216_pulse_mtx_6bins[singleton_idx][z];
+                            break;
+                        case 8: 
+                            bin = GF216_pulse_mtx_8bins[singleton_idx][z];
+                            break;
+                        case 10: 
+                            bin = GF216_pulse_mtx_10bins[singleton_idx][z];
+                            break;
+                        case 12: 
+                            bin = GF216_pulse_mtx_12bins[singleton_idx][z];
+                            break;
+                        default:
+                            std::cerr << "Cannot compute: This number of bins has not been considered yet!";
+                            break;
+                    }
+                    if (bin == i/3) {
+                        bins.push_back(bin);
                     }
                     else {
-                        bins.push_front(GF216_pulse_mtx_6bins[singleton_idx][z]);
+                        bins.push_front(bin);
                     }
                 }
                 

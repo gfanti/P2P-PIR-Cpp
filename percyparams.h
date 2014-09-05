@@ -131,7 +131,8 @@ protected:
     bool hybrid_protection;
     bool do_spir;
     nservers_t _tau;
-    dbsize_t _words_per_block, _num_blocks, _max_unsynchronized, _expansion_factor;
+    dbsize_t _words_per_block, _num_blocks, _max_unsynchronized;
+    dbsize_t _expansion_factor;
     ZZ_pContext modctx, modsqctx;
     // Paillier public key
     ZZ modulus;

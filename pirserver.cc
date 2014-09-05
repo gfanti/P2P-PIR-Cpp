@@ -897,7 +897,7 @@ int main (int argc, char ** argv)
     if (params == NULL) {
         return -1;
     }
-
+    
     // Create datastore
     DataStore * datastore = NULL;
 #ifndef DIST_MASTER

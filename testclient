@@ -137,6 +137,9 @@ while [ $# -gt 0 ]; do
         "-u" )
             MAX_UNSYNCHRONIZED=$2
             shift 2 ;;
+        "-ex" )
+            EXPANSION_FACTOR=$2
+            shift 2 ;;
 	"-B" )
 	    BLOCKS=$2
 	    shift 2 ;;
@@ -262,7 +265,6 @@ case $METHOD in
         WORDS_PER_BLOCK=1024
         WORD_SIZE=16
         MODE="r"
-        EXPANSION_FACTOR=3
         SERVER_FLAGS="$SERVER_FLAGS"
         CLIENT_FLAGS="$CLIENT_FLAGS" ;;
     gf216l )
@@ -315,7 +317,6 @@ function killservers {
         fi
     fi
 }
-
 
 ## Start the servers
 
