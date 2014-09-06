@@ -22,8 +22,8 @@ def build_rand_mapping(filename,binSeed,nBins,N):
     
 if __name__=='__main__':
     filename = 'test'
+    nBins = 40
     binSeed = 1
-    nBins = 11
     N = 10000
     
     build_rand_mapping(filename,binSeed,nBins,N)

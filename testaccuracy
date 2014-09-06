@@ -318,126 +318,142 @@ function killservers {
     fi
 }
 
-## Start the servers
+NUM_TRIALS=1000
+# modify the below array to choose which numbers of bins to try out
+declare -a BINS_TO_TRY=( 4 5 6 8 10 12 14 16 20 )
+RESULTS_OUTFILE="/mnt/hgfs/Documents/research/p2p_private_search/Code/percy-0.9.0/results/unsynchronized$MAX_UNSYNCHRONIZED.csv"
+rm -rf $RESULTS_OUTFILE
 
-PORTNO=31337
-PIDS=""
-SERVER_ARG=""
-CLIENT_OUTFILE=/tmp/client.out
-REAL_OUTFILE=/tmp/real.out
-for (( i = 1; i <= $NUM_SERVERS; i++ )) do
-    echo "Starting server $i..."
-    if [ $i -le $NUM_BYZ ]; then
-        BYZ_FLAG="-z"
-    else
-        BYZ_FLAG=""
-    fi
-    if [ $TAUGTZERO == TRUE ]; then
-        DBSUFFIX=".$i"
-    else
-        DBSUFFIX=""
-    fi
-    
-    COMMAND="./pirserver -m $MODE $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -e $NUM_BINS -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
+for NUM_BINS in "${BINS_TO_TRY[@]}"
+do
+    NUM_CORRECT=0
+    for (( g = 1; g <= $NUM_TRIALS; g++ )) do
+        sleep 1
+        echo "Starting trial $g"
+        
+        ## Start the servers
 
-    if [ $VERBOSE == TRUE ]; then
-        echo "$COMMAND &"
-        $COMMAND &
-    else
-        $COMMAND > /dev/null 2>&1 &
-    fi
-    RET=$!
+        PORTNO=31337
+        PIDS=""
+        SERVER_ARG=""
+        CLIENT_OUTFILE=/tmp/client.out
+        REAL_OUTFILE=/tmp/real.out
+        for (( i = 1; i <= $NUM_SERVERS; i++ )) do
+            echo "Starting server $i..."
+            if [ $i -le $NUM_BYZ ]; then
+                BYZ_FLAG="-z"
+            else
+                BYZ_FLAG=""
+            fi
+            if [ $TAUGTZERO == TRUE ]; then
+                DBSUFFIX=".$i"
+            else
+                DBSUFFIX=""
+            fi
+            
+            COMMAND="./pirserver -m $MODE $SERVER_FLAGS $BYZ_FLAG -n $DATABASE_SIZE -b $BLOCK_SIZE -w $WORD_SIZE -u $MAX_UNSYNCHRONIZED -e $NUM_BINS -p $PORTNO -S $i $STAU ${DATABASE}${DBSUFFIX}"
 
-    if [ "$PIDS" == "" ]; then
-        PIDS=$RET
-    else
-        PIDS="$PIDS $RET"
-    fi
-    if [ "$SERVER_ARG" == "" ]; then
-        SERVER_ARG="$i:localhost:$PORTNO"
-    else
-        SERVER_ARG="$SERVER_ARG $i:localhost:$PORTNO"
-    fi
+            if [ $VERBOSE == TRUE ]; then
+                echo "$COMMAND &"
+                $COMMAND &
+            else
+                $COMMAND > /dev/null 2>&1 &
+            fi
+            RET=$!
 
-    PORTNO=$(($PORTNO+1))
-done
+            if [ "$PIDS" == "" ]; then
+                PIDS=$RET
+            else
+                PIDS="$PIDS $RET"
+            fi
+            if [ "$SERVER_ARG" == "" ]; then
+                SERVER_ARG="$i:localhost:$PORTNO"
+            else
+                SERVER_ARG="$SERVER_ARG $i:localhost:$PORTNO"
+            fi
 
-## Choose blocks to query
+            PORTNO=$(($PORTNO+1))
+        done
+        
+        ## Choose blocks to query
 
-if [ "$BLOCKS" = "" ]; then
-    BLOCKS="$[$RANDOM % $NUM_BLOCKS]"
-    for (( i = 1; i < $NUM_QUERIES; i++ )) do
-    BLOCKS="$BLOCKS $[$RANDOM % $NUM_BLOCKS]"
-    done
-fi
-
-
-## Run the client
-
-echo "Starting the client ..."
-COMMAND="./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
-if [ $VERBOSE == TRUE ]; then
-    echo $COMMAND
-fi
-if [ $GDB == TRUE ]; then
-    echo $COMMAND ">" $CLIENT_OUTFILE
-    gdb ./pirclient
-else
-    if [ $MAX_UNSYNCHRONIZED == 0 ]; then
-        ./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
-    else
-        ./pirclient$CLIENT_FLAGS -m r $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
-    fi
-    if [ $? -ne 0 ]; then
-    echo "The client did not finish correctly!"
-    killservers
-    exit 1
-    fi
-fi
+        if [ "$BLOCKS" = "" ]; then
+            BLOCKS="$[$RANDOM % $NUM_BLOCKS]"
+            for (( i = 1; i < $NUM_QUERIES; i++ )) do
+            BLOCKS="$BLOCKS $[$RANDOM % $NUM_BLOCKS]"
+            done
+        fi
 
 
-## Create file of wanted results
-rm $REAL_OUTFILE > /dev/null 2>&1
-for BLOCK in $BLOCKS; do
-    dd if=$DATABASE bs=$BLOCK_SIZE skip=$BLOCK count=1 >> $REAL_OUTFILE 2> /dev/null
-done
-echo
-cblocks=`ls -l --block-size=$BLOCK_SIZE $CLIENT_OUTFILE | cut -d' ' -f5`
-cindex=0
-rindex=0
-for BLOCK in $BLOCKS; do
-    dd if=$REAL_OUTFILE bs=$BLOCK_SIZE skip=$rindex count=1 > $REAL_OUTFILE.current 2> /dev/null
-    while [ 0 ]; do
-        if [ $cindex -ge $cblocks ]; then
-            echo "Block #$(($rindex+1)) ($BLOCK) did not match!"
-            echo "Failed to match all blocks!  Use cmp to compare the files:"
-            echo
-            echo "    Client Output: $CLIENT_OUTFILE"
-            echo "    Actual Blocks: $REAL_OUTFILE"
-            echo
-            rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
+        ## Run the client
+
+        echo "Starting the client ..."
+        COMMAND="./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL \"$BLOCKS\" \"$SERVER_ARG\""
+        if [ $VERBOSE == TRUE ]; then
+            echo $COMMAND
+        fi
+        if [ $GDB == TRUE ]; then
+            echo $COMMAND ">" $CLIENT_OUTFILE
+            gdb ./pirclient
+        else
+            if [ $MAX_UNSYNCHRONIZED == 0 ]; then
+                ./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+            else
+                ./pirclient$CLIENT_FLAGS -m r $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+            fi
+            if [ $? -ne 0 ]; then
+            echo "The client did not finish correctly!"
             killservers
-            exit 1    
+            exit 1
+            fi
         fi
-        dd if=$CLIENT_OUTFILE bs=$BLOCK_SIZE skip=$cindex count=1 > $CLIENT_OUTFILE.current 2> /dev/null
-        if cmp $CLIENT_OUTFILE.current $REAL_OUTFILE.current > /dev/null 2>&1; then
-            echo "Block #$(($rindex+1)) ($BLOCK) matched block #$(($cindex+1)) of client output!"
-            NUM_CORRECT = $[$NUM_CORRECT + 1]
-            break
-        fi
-        cindex=$[$cindex + 1]
+
+
+        ## Create file of wanted results
+        rm $REAL_OUTFILE > /dev/null 2>&1
+        for BLOCK in $BLOCKS; do
+            dd if=$DATABASE bs=$BLOCK_SIZE skip=$BLOCK count=1 >> $REAL_OUTFILE 2> /dev/null
+        done
+        echo
+        cblocks=`ls -l --block-size=$BLOCK_SIZE $CLIENT_OUTFILE | cut -d' ' -f5`
+        cindex=0
+        rindex=0
+        for BLOCK in $BLOCKS; do
+            dd if=$REAL_OUTFILE bs=$BLOCK_SIZE skip=$rindex count=1 > $REAL_OUTFILE.current 2> /dev/null
+            while [ 0 ]; do
+                if [ $cindex -ge $cblocks ]; then
+                    echo "Block #$(($rindex+1)) ($BLOCK) did not match!"
+                    echo "Failed to match all blocks!  Use cmp to compare the files:"
+                    echo
+                    echo "    Client Output: $CLIENT_OUTFILE"
+                    echo "    Actual Blocks: $REAL_OUTFILE"
+                    echo
+                    rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
+                    break
+                fi
+                dd if=$CLIENT_OUTFILE bs=$BLOCK_SIZE skip=$cindex count=1 > $CLIENT_OUTFILE.current 2> /dev/null
+                if cmp $CLIENT_OUTFILE.current $REAL_OUTFILE.current > /dev/null 2>&1; then
+                    echo "Block #$(($rindex+1)) ($BLOCK) matched block #$(($cindex+1)) of client output!"
+                    NUM_CORRECT=$[$NUM_CORRECT + 1]
+                    break
+                fi
+                cindex=$[$cindex + 1]
+            done
+            cindex=$[$cindex + 1]
+            rindex=$[$rindex + 1]
+        done
+        echo
+        rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
+
+        ## Kill the servers
+        killservers
+
     done
-    cindex=$[$cindex + 1]
-    rindex=$[$rindex + 1]
+
+    echo "The number of correct values is $NUM_CORRECT out of $NUM_TRIALS"
+    echo -e "$NUM_BINS, $NUM_CORRECT" >> "$RESULTS_OUTFILE"
+    cat $RESULTS_OUTFILE
 done
-echo "All blocks were successfully matched!"
-echo
-rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
-
-
-## Kill the servers
-killservers
-
 
 ## Return zero is passed, one if failed
 exit 0

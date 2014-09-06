@@ -41,6 +41,7 @@ extern const GF216_Element GF216_pulse_mtx_9bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_10bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_11bins[10000][3];
 extern const GF216_Element GF216_pulse_mtx_12bins[10000][3];
+extern const GF216_Element GF216_pulse_mtx_1000bins[10000][3];
 
 /* The interpolation matrices for V^-1 */
 extern const GF216_Element GF216_V_inv_2servers[2];

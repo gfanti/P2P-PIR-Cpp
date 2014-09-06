@@ -21,6 +21,7 @@
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
+#include <time.h>  
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
@@ -501,16 +502,14 @@ bool PercyServer::handle_request_Chor(PercyServerParams &params, std::istream &i
 // Tell the server that it should hold unsynchronized files
 void PercyServer::set_server_unsynchronized(PercyServerParams &params) {
     server_unsynchronized = true; 
-    
+    srand (time(NULL));
     // decide which files will be unsynchronized, and print them out
     for (dbsize_t i=0; i<params.max_unsynchronized(); i++) {
         // pick a random number in num_blocks
+        
         dbsize_t idx = std::rand() % params.num_blocks();
         unsynchronized_files.push_back(idx);
         std::cerr << "Unsynchronized file at " << idx << std::endl;
-        for (dbsize_t j=0; j<DEGREE; j++) {
-            std::cerr << idx << " binned to " << GF216_pulse_mtx_6bins[idx][j] << std::endl;
-        }
     }
 }
 

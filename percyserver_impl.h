@@ -267,8 +267,7 @@ void PercyServer::compute_outputvec_sync(
     
     const GF216_Element *block = data;
     
-    // If the server is supposed to be unsynchronized, just treat the first 
-    // max_unsynchronized files as zeros
+    
     for (dbsize_t j = 0; j < num_blocks; ++j) {
         // std::cerr << "Multiplying everything by " << q_x << std::endl;
         if (std::find(unsynchronized_files.begin(), unsynchronized_files.end(), j)==unsynchronized_files.end()){
@@ -304,7 +303,7 @@ void PercyServer::compute_outputvec_sync(
                         bin = GF216_pulse_mtx_12bins[j][k];
                         break;
                     default:
-                        std::cerr << "Cannot compute: This number of bins has not been considered yet!";
+                        bin = GF216_pulse_mtx_1000bins[j][k] % (num_rows/NUM_RATIOS);
                         break;
                 }
                 
