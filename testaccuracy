@@ -123,6 +123,7 @@ SERVER_FLAGS=""
 CLIENT_FLAGS=""
 MODE="z"
 BLOCKS=""
+FACTOR=1
 while [ $# -gt 0 ]; do
     case $1 in
         "-m" )
@@ -196,9 +197,9 @@ case $METHOD in
         WORD_SIZE=32
         SERVER_FLAGS="$SERVER_FLAGS" ;;
     w16 )
-        DATABASE_SIZE=2097152
+        DATABASE_SIZE=$((2097152*FACTOR))
         BLOCK_SIZE=2048
-        NUM_BLOCKS=1024
+        NUM_BLOCKS=$((1024*FACTOR))
         WORDS_PER_BLOCK=1024
         WORD_SIZE=16
         MODE="s"
@@ -259,9 +260,9 @@ case $METHOD in
         SERVER_FLAGS="$SERVER_FLAGS -ms"
         CLIENT_FLAGS="$CLIENT_FLAGS -ms" ;;
     rs_sync )
-        DATABASE_SIZE=2097152
+        DATABASE_SIZE=$((2097152*FACTOR))
         BLOCK_SIZE=2048
-        NUM_BLOCKS=1024
+        NUM_BLOCKS=$((1024*FACTOR))
         WORDS_PER_BLOCK=1024
         WORD_SIZE=16
         MODE="r"
@@ -318,11 +319,14 @@ function killservers {
     fi
 }
 
-NUM_TRIALS=1000
+NUM_TRIALS=1
 # modify the below array to choose which numbers of bins to try out
-declare -a BINS_TO_TRY=( 4 5 6 8 10 12 14 16 20 )
-RESULTS_OUTFILE="/mnt/hgfs/Documents/research/p2p_private_search/Code/percy-0.9.0/results/unsynchronized$MAX_UNSYNCHRONIZED.csv"
-rm -rf $RESULTS_OUTFILE
+declare -a BINS_TO_TRY=( 10 )
+#RESULTS_OUTFILE="/mnt/hgfs/Documents/research/p2p_private_search/Code/percy-0.9.0/results/devet_unsynchronized$MAX_UNSYNCHRONIZED.csv"
+#rm -rf $RESULTS_OUTFILE
+
+#TIME_OUTFILE="/mnt/hgfs/Documents/research/p2p_private_search/Code/percy-0.9.0/results/time_results_blocks$NUM_BLOCKS.csv"
+#rm -rf $TIME_OUTFILE
 
 for NUM_BINS in "${BINS_TO_TRY[@]}"
 do
@@ -396,11 +400,11 @@ do
             echo $COMMAND ">" $CLIENT_OUTFILE
             gdb ./pirclient
         else
-            if [ $MAX_UNSYNCHRONIZED == 0 ]; then
-                ./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
-            else
-                ./pirclient$CLIENT_FLAGS -m r $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
-            fi
+            #if [ $MAX_UNSYNCHRONIZED == 0 ]; then
+            ./pirclient$CLIENT_FLAGS -m $MODE $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" "$SERVER_ARG" > $CLIENT_OUTFILE
+            #else
+             #   ./pirclient$CLIENT_FLAGS -m r $NUM_BLOCKS $WORDS_PER_BLOCK $MAX_UNSYNCHRONIZED $NUM_BINS $WORD_SIZE $NUM_SERVERS $NUM_SERVERS $PRIVACY_LEVEL "$BLOCKS" #"$SERVER_ARG" > $CLIENT_OUTFILE
+            #fi
             if [ $? -ne 0 ]; then
             echo "The client did not finish correctly!"
             killservers
@@ -443,6 +447,12 @@ do
             rindex=$[$rindex + 1]
         done
         echo
+        
+        # Write the time to file
+        #dd conv=notrunc if=$CLIENT_OUTFILE  bs=$BLOCK_SIZE  skip=$rindex | tee -a $TIME_OUTFILE
+        #echo -e ", " >> "$TIME_OUTFILE"
+        #cat $TIME_OUTFILE
+
         rm -rf $CLIENT_OUTFILE.current $REAL_OUTFILE.current
 
         ## Kill the servers
@@ -451,8 +461,8 @@ do
     done
 
     echo "The number of correct values is $NUM_CORRECT out of $NUM_TRIALS"
-    echo -e "$NUM_BINS, $NUM_CORRECT" >> "$RESULTS_OUTFILE"
-    cat $RESULTS_OUTFILE
+    #echo -e "$NUM_BINS, $NUM_CORRECT" >> "$RESULTS_OUTFILE"
+    #cat $RESULTS_OUTFILE
 done
 
 ## Return zero is passed, one if failed

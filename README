@@ -1,11 +1,13 @@
-Percy++ / PIR in C++
+Percy++ / PIR in C++ (Modified to accommodate unsynchronized databases)
 
 Ian Goldberg <iang@cs.uwaterloo.ca>
 Casey Devet <cjdevet@cs.uwaterloo.ca>
 Paul Hendry <pshendry@uwaterloo.ca>
 Ryan Henry <rhenry@cs.uwaterloo.ca>
+Modifications by Giulia Fanti <gfanti@eecs.berkeley.edu>
 
-Version 0.9: 2013-06-07
+
+Percy version 0.9: 2013-06-07
 
 
 About Percy++
@@ -25,6 +27,17 @@ protocols from the papers:
     C. Devet, I. Goldberg, and N. Heninger.  Optimally Robust Private 
     Information Retrieval.  In 21st USENIX Security Symposium, 2012. 
 
+The modifications to Percy++ in this repository enable one to do PIR 
+over databases that are not identical. Identical databases have 
+traditionally been a core assumption in multi-server PIR. The new 
+modifications also enable a user to request multiple records in one 
+round of PIR. These modifications are an implementation of the 
+protocols in paper:
+
+    G. Fanti and K. Ramchandran.  Efficient, Multi-Server Private 
+    Information Retrieval over Unsynchronized Databases.  In Allerton
+    Conference, 2015. 
+    
 Briefly, private information retrieval is the task of fetching a block
 of data from a database server (or group of distributed servers) without
 the server(s) learning which block it was that you were interested in.
@@ -107,6 +120,11 @@ takes as arguments:
    t = number of servers that can collude
  idx = indices of blocks to fetch (0-based)
  tau = tau-independence value of database shares
+   u = maximum number of files that can be unsynchronized across servers
+   e = expansion factor for synchronization bins
+idxi = indices of blocks to fetch (0-based).
+   
+   
 
 The pirclient program will write the blocks it computes to standard out.
 To overwrite the default value of h (the minimum number of honest servers), set
@@ -170,6 +188,7 @@ The RSDecoder class is an implementation of Reed-Solomon decoding.  We have
 implemented many decoding algorithms, specifically the algorithm described in
 the paper by Devet, Goldberg and Heninger (listed above).  For more information
 about the API of RSDecoder, see doc/rsdecoder.txt.
+
 
 
 Changelog

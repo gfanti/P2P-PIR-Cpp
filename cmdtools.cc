@@ -17,6 +17,7 @@
 //  Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 //  02110-1301 USA
 
+#include <iostream>
 #include "cmdtools.h"
 
 bool parse_long_opts (int argc, char ** argv, const char * shortopts,
@@ -78,6 +79,7 @@ bool parse_long_opts (int argc, char ** argv, const char * shortopts,
 	retargs.nonoptv.push_back(argv[optind++]);
 	++retargs.nonoptc;
     }
+    std::cerr << "Args: " << retargs.nonoptv[0] << " size: " << retargs.nonoptv.size() << std::endl;
 
     return true;
 }

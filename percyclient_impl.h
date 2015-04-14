@@ -839,8 +839,8 @@ nservers_t PercyClient_RS_Sync<GF2E_Element>::receive_sync_replies (
 {
     // The vector of servers that have responded properly
     nservers_t res = 0;
-    dbsize_t words_per_block = this->params.words_per_block();
-    dbsize_t max_unsynchronized = this->params.max_unsynchronized();
+    // dbsize_t words_per_block = this->params.words_per_block();
+    // dbsize_t max_unsynchronized = this->params.max_unsynchronized();
     dbsize_t num_bins = this->params.num_bins();
     
     dbsize_t num_rows = num_bins * NUM_RATIOS;
@@ -1020,7 +1020,7 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                 done = false;
                 
                 // update the list of nonzero db entries
-                std::cerr << "The singleton is located at index " << singleton_idx << std::endl;
+                // std::cerr << "The singleton is located at index " << singleton_idx << std::endl;
                 this->sync_error_locs.push_back(singleton_idx);
                 
                 // construct the list of indices to remove from the compressed vector
@@ -1056,7 +1056,7 @@ void PercyClient_RS_Sync<GF2E_Element>::find_unsynchronized_files(
                             bin = GF216_pulse_mtx_12bins[singleton_idx][z];
                             break;
                         default:
-                            std::cerr << "Cannot compute: This number of bins has not been considered yet!";
+                            bin = GF216_pulse_mtx_1000bins[singleton_idx][z] % (num_rows/NUM_RATIOS);
                             break;
                     }
                     if (bin == i/3) {

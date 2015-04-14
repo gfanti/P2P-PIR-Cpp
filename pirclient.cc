@@ -19,6 +19,7 @@
 //  02110-1301 USA
 
 #include <signal.h>
+#include <time.h>
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -253,7 +254,6 @@ int main(int argc, char **argv)
     dbsize_t max_unsynchronized = strtoull(argv[optind++], NULL, 10);
     dbsize_t num_bins = strtoull(argv[optind++], NULL, 10);
     dbsize_t w = strtoull(argv[optind++], NULL, 10);
-	
     
     // Sanity checks for (n,b,w).
     if (mode == MODE_CHOR) {
@@ -506,6 +506,10 @@ int main(int argc, char **argv)
     }
     
     
+    // Time the full query
+    clock_t t_time;
+    t_time = clock();
+    
     // Set up an iostream to each of the servers.
     vector<serverinfo> onlinesinfos;
     vector<iosockinet*> serverstreams;
@@ -676,6 +680,13 @@ int main(int argc, char **argv)
             std::cout << resiter->sigma;
         }
     }
+    
+    // Write the current time to the outputfile
+    t_time = clock() - t_time;
+    // Safely use the file stream
+    std::cout << t_time; // append "some stuff" to the end of the file
+    std::cerr << "size of clock_t " << sizeof(clock_t) << std::endl;
+    std::cerr << "size of CLOCKS_PER_SEC " << CLOCKS_PER_SEC <<std::endl;
     
     // Tidy up after query.
     serverstreams.clear();
